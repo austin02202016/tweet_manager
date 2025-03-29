@@ -1,12 +1,19 @@
 import { Twitter, TrendingUp, Settings, Search, Home, Users, LogOut } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import useOrganization from '@/hooks/useOrganization';
 import useClients from '@/hooks/useClients';
 import type { Client } from '@/types/client';
+import { supabase } from '@/lib/supabase';
 
 interface SidebarProps {
   onClientSelect: (client: Client) => void;
   selectedClientId?: string;
+}
+
+interface Organization {
+  id: string;
+  name: string;
+  // Add other fields as necessary
 }
 
 export function Sidebar({ onClientSelect, selectedClientId }: SidebarProps) {
@@ -29,6 +36,37 @@ export function Sidebar({ onClientSelect, selectedClientId }: SidebarProps) {
       client.client_id.toLowerCase().includes(searchString)
     );
   });
+
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchOrganizations = async () => {
+      try {
+        setLoading(true);
+        const { data, error } = await supabase.from("organizations").select("*");
+
+        if (error) throw error;
+
+        setOrganizations(data || []);
+
+        // Set the selected organization based on the user's organization ID
+        const userOrgId = organizationId;
+        if (data?.some(org => org.id === userOrgId)) {
+          setSelectedOrgId(userOrgId);
+        } else if (data?.length > 0) {
+          setSelectedOrgId(data[0].id);
+        }
+      } catch (err) {
+        console.error("Error fetching organizations:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchOrganizations();
+  }, []);
 
   return (
     <div className="w-64 border-r border-[#38444d] h-screen flex flex-col bg-[#192734]">
@@ -69,20 +107,20 @@ export function Sidebar({ onClientSelect, selectedClientId }: SidebarProps) {
               <Home className="h-4 w-4 mr-3 text-[#1d9bf0]" />
               Dashboard
             </a>
-            <a 
+            {/* <a 
               href="/analytics"
               className="flex items-center px-3 py-2 text-white hover:bg-[#253341] rounded-md transition-colors"
             >
               <TrendingUp className="h-4 w-4 mr-3 text-[#1d9bf0]" />
               Analytics
-            </a>
-            <a 
+            </a> */}
+            {/* <a 
               href="/admin"
               className="flex items-center px-3 py-2 text-white hover:bg-[#253341] rounded-md transition-colors"
             >
               <Settings className="h-4 w-4 mr-3 text-[#1d9bf0]" />
               Admin
-            </a>
+            </a> */}
           </div>
         </div>
 
@@ -134,10 +172,10 @@ export function Sidebar({ onClientSelect, selectedClientId }: SidebarProps) {
                         : 'text-white hover:bg-[#253341] border-l-2 border-transparent'
                     }`}
                   >
-                    {client.profile_picture_url ? (
+                    {client.profile_photo_url ? (
                       <div className="w-7 h-7 rounded-full overflow-hidden mr-3 border border-[#38444d]">
                         <img 
-                          src={client.profile_picture_url}
+                          src={client.profile_photo_url}
                           alt={client.name || "Client profile"}
                           className="w-full h-full object-cover"
                         />

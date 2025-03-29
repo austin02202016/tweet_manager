@@ -4,6 +4,8 @@ import { X, MessageCircle, Repeat, Heart, BarChart2, Bookmark, Share } from 'luc
 import { Badge } from '@/components/ui/badge';
 import { formatDate, formatNumber } from '@/lib/utils';
 import type { Thread } from '@/types/thread'; // Ensure this import matches your current type definition
+import { supabase } from '@/lib/supabase'; // Ensure this import is correct
+import { fetchUserData } from '@/hooks/useClient';
 
 interface ThreadDetailModalProps {
   thread: Thread;
@@ -12,6 +14,7 @@ interface ThreadDetailModalProps {
 
 export function ThreadDetailModal({ thread, onClose }: ThreadDetailModalProps) {
   const [isVisible, setIsVisible] = useState(false);
+  const [userData, setUserData] = useState(null);
 
   useEffect(() => {
     setIsVisible(true);
@@ -30,6 +33,15 @@ export function ThreadDetailModal({ thread, onClose }: ThreadDetailModalProps) {
       document.removeEventListener('keydown', handleEscKey);
     };
   }, [onClose]);
+
+  useEffect(() => {
+    async function loadUserData() {
+      const data = await fetchUserData(thread.client_id); // Assuming thread has a userId field
+      setUserData(data);
+    }
+
+    loadUserData();
+  }, [thread.client_id]);
 
   return (
     <div
@@ -66,11 +78,11 @@ export function ThreadDetailModal({ thread, onClose }: ThreadDetailModalProps) {
                   <div className="p-4">
                     <div className="flex items-start gap-3 mb-3">
                       <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0">
-                        <img src="/images/profile-pic.png" alt="Profile" className="w-full h-full object-cover" />
+                        <img src={userData?.profile_photo_url || '/images/profile-pic.png'} alt="Profile" className="w-full h-full object-cover" />
                       </div>
                       <div>
                         <div className="flex items-center gap-1">
-                          <span className="font-bold">Jesse Itzler</span>
+                          <span className="font-bold">{userData?.username || 'Unknown User'}</span>
                           <svg
                             viewBox="0 0 24 24"
                             aria-label="Verified account"
@@ -85,11 +97,22 @@ export function ThreadDetailModal({ thread, onClose }: ThreadDetailModalProps) {
                             @JesseItzler · {index === 0 ? '14h' : `${index + 1}m`}
                           </span>
                         </div>
-                        <div className="text-[15px] leading-normal mt-1">{tweet.text}</div>
+                        <div className="text-[15px] leading-normal mt-1">
+                          {tweet.text.split("\n\n").map((paragraph, i) => (
+                            <p key={i} className={`${i > 0 ? "mt-4" : ""}`}>
+                              {paragraph.split("\n").map((line, j) => (
+                                <React.Fragment key={j}>
+                                  {line}
+                                  {j < paragraph.split("\n").length - 1 && <br />}
+                                </React.Fragment>
+                              ))}
+                            </p>
+                          ))}
+                        </div>
 
                         {tweet.media && tweet.media.length > 0 && (
                           <div className="mt-3 rounded-xl overflow-hidden border border-twitter-lightGray">
-                            {tweet.media.map((url, i) => (
+                            {tweet.media.map((url: string, i: number) => (
                               <img
                                 key={i}
                                 src={url || `/placeholder.svg?height=300&width=500`}
@@ -105,28 +128,28 @@ export function ThreadDetailModal({ thread, onClose }: ThreadDetailModalProps) {
                             <div className="p-2 rounded-full group-hover:bg-blue-500/10 group-hover:text-blue-500 transition-colors">
                               <MessageCircle className="h-5 w-5" />
                             </div>
-                            <span className="text-sm group-hover:text-blue-500">{formatNumber(tweet.replies)}</span>
+                            <span className="text-sm group-hover:text-blue-500">{formatNumber(tweet.reply_count)}</span>
                           </button>
 
                           <button className="flex items-center group">
                             <div className="p-2 rounded-full group-hover:bg-green-500/10 group-hover:text-green-500 transition-colors">
                               <Repeat className="h-5 w-5" />
                             </div>
-                            <span className="text-sm group-hover:text-green-500">{formatNumber(tweet.retweets)}</span>
+                            <span className="text-sm group-hover:text-green-500">{formatNumber(tweet.retweet_count)}</span>
                           </button>
 
                           <button className="flex items-center group">
                             <div className="p-2 rounded-full group-hover:bg-red-500/10 group-hover:text-red-500 transition-colors">
                               <Heart className="h-5 w-5" />
                             </div>
-                            <span className="text-sm group-hover:text-red-500">{formatNumber(tweet.likes)}</span>
+                            <span className="text-sm group-hover:text-red-500">{formatNumber(tweet.like_count)}</span>
                           </button>
 
                           <button className="flex items-center group">
                             <div className="p-2 rounded-full group-hover:bg-blue-500/10 group-hover:text-blue-500 transition-colors">
                               <BarChart2 className="h-5 w-5" />
                             </div>
-                            <span className="text-sm group-hover:text-blue-500">{formatNumber(tweet.views)}</span>
+                            <span className="text-sm group-hover:text-blue-500">{formatNumber(tweet.view_count)}</span>
                           </button>
 
                           <div className="flex items-center">

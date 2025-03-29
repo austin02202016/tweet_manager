@@ -14,23 +14,44 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
 
   const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-    setError("")
-
-    const { error } = await supabase.auth.signInWithPassword({
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+  
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
-    })
-
+    });
+  
     if (error) {
-      setError(error.message)
+      setError(error.message);
     } else {
-      window.location.href = "/" // Redirect to dashboard
+      const user = data.user;
+      console.log("Authenticated User ID:", user.id);
+  
+      // Fetch the user's organization ID
+      const { data: userData, error: fetchError } = await supabase
+        .from("users")
+        .select("organization_id")
+        .eq("auth_user_id", user.id)
+        .single();
+  
+      console.log("Query Error:", fetchError);
+  
+      if (fetchError || !userData) {
+        setError("Failed to fetch organization information.");
+      } else {
+        const organizationId = userData.organization_id;
+        localStorage.setItem("organization_id", organizationId);
+        console.log("Organization ID:", organizationId);
+  
+        // Redirect to the user's organization page
+        window.location.href = `/`;  
+      }
     }
-
-    setLoading(false)
-  }
+  
+    setLoading(false);
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#111827]">

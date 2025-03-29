@@ -33,12 +33,9 @@ export default function AdminPage() {
         setOrganizations(data || [])
         
         // If org_id is preselected, use it
-        const preselectedOrgId = "f2b9fd95-2607-4232-8119-ae56401b3bad"
-        if (data?.some(org => org.id === preselectedOrgId)) {
-          setSelectedOrgId(preselectedOrgId)
-        } else if (data?.length > 0) {
-          setSelectedOrgId(data[0].id)
-        }
+        
+        setSelectedOrgId(data[0].id)
+   
       } catch (err) {
         console.error("Error fetching organizations:", err)
       } finally {

@@ -43,4 +43,19 @@ export const useClient = (clientId: string | null) => {
   return { client, loading, error };
 };
 
+export async function fetchUserData(clientId: string) {
+  const { data, error } = await supabase
+    .from('clients')
+    .select('profile_photo_url, username')
+    .eq('client_id', clientId)
+    .single();
+
+  if (error) {
+    console.error('Error fetching user data:', error);
+    return null;
+  }
+
+  return data;
+}
+
 export default useClient; 

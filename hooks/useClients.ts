@@ -20,7 +20,7 @@ export const useClients = (organizationId: string | null) => {
 
         const { data, error } = await supabase
           .from('clients')
-          .select('*')
+          .select('client_id, name, profile_photo_url, created_at, organization_id')
           .eq('organization_id', organizationId);
 
         if (error) {
