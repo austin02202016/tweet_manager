@@ -1,6 +1,7 @@
 import Image from 'next/image';
 import { ArrowUp, ArrowDown, Eye, ThumbsUp, MessageCircle, Share2 } from 'lucide-react';
 import useClient from '@/hooks/useClient';
+import useClientMetrics from '@/hooks/useClientMetrics';
 import type { Thread } from '@/types/thread';
 import { useMemo } from 'react';
 
@@ -9,26 +10,44 @@ interface ClientHeroProps {
   threads: Thread[];
 }
 
-export function ClientHero({ clientId, threads }: ClientHeroProps) {
-  const { client, loading } = useClient(clientId);
+// Helper function to safely format numbers for display
+const formatNumber = (value: number | undefined | null): string => {
+  if (value === undefined || value === null) return '0';
+  return value.toLocaleString();
+};
 
-  // Calculate metrics properly aggregating data from all tweets within each thread
-  const metrics = useMemo(() => {
-    // Initialize metrics object
+export function ClientHero({ clientId, threads }: ClientHeroProps) {
+  const { client, loading: clientLoading } = useClient(clientId);
+  const { metrics, loading: metricsLoading } = useClientMetrics(clientId);
+  
+  // Fallback to client-side calculation if server metrics are not available
+  const fallbackMetrics = useMemo(() => {
+    // Initialize metrics object with default values
     const result = {
       totalViews: 0,
       totalLikes: 0,
       totalReplies: 0,
       totalRetweets: 0,
-      repackagedCount: 0,
-      threadCount: threads.length,
-      // Store historical data for comparison
+      totalQuotes: 0,
+      totalImpressions: 0,
+      engagement_rate: 0,
+      threadCount: threads?.length || 0,
+      weekly_growth: [],
+      topThreads: [],
+      periodComparison: {
+        views: { change: 0, positive: true },
+        likes: { change: 0, positive: true },
+        replies: { change: 0, positive: true },
+      },
+      // Keep previousPeriod for internal calculations
       previousPeriod: {
         views: 0,
         likes: 0,
         replies: 0
       }
     };
+    
+    if (!threads?.length) return result;
     
     // Get date for one week ago to calculate percentage changes
     const oneWeekAgo = new Date();
@@ -45,44 +64,60 @@ export function ClientHero({ clientId, threads }: ClientHeroProps) {
       }
       
       // Aggregate metrics from all tweets in the thread
-      thread.tweets.forEach(tweet => {
-        // Aggregate total metrics
-        result.totalViews += tweet.view_count || 0;
-        result.totalLikes += tweet.like_count || 0;
-        result.totalReplies += tweet.reply_count || 0;
-        result.totalRetweets += tweet.retweet_count || 0;
+      thread.tweets?.forEach(tweet => {
+        // Normalize and aggregate total metrics
+        result.totalViews += Number(tweet.view_count || 0);
+        result.totalLikes += Number(tweet.like_count || 0);
+        result.totalReplies += Number(tweet.reply_count || 0);
+        result.totalRetweets += Number(tweet.retweet_count || 0);
         
         // For percentage change, only consider tweets from previous period
         const tweetDate = new Date(tweet.date_posted || tweet.created_at);
         if (tweetDate >= twoWeeksAgo && tweetDate < oneWeekAgo) {
-          result.previousPeriod.views += tweet.view_count || 0;
-          result.previousPeriod.likes += tweet.like_count || 0;
-          result.previousPeriod.replies += tweet.reply_count || 0;
+          result.previousPeriod.views += Number(tweet.view_count || 0);
+          result.previousPeriod.likes += Number(tweet.like_count || 0);
+          result.previousPeriod.replies += Number(tweet.reply_count || 0);
         }
       });
     });
     
     // Calculate percentage changes
     const calculateChange = (current: number, previous: number) => {
-      if (previous === 0) return { value: 100, positive: true }; // If no previous data, show 100% increase
+      if (previous === 0) return { change: 0, positive: true }; // If no previous data, show neutral change
       const change = ((current - previous) / previous) * 100;
       return {
-        value: Math.abs(Math.round(change * 10) / 10), // Round to 1 decimal place
+        change: Math.abs(Math.round(change * 10) / 10), // Round to 1 decimal place
         positive: change >= 0
       };
     };
     
-    const viewsChange = calculateChange(result.totalViews, result.previousPeriod.views);
-    const likesChange = calculateChange(result.totalLikes, result.previousPeriod.likes);
-    const repliesChange = calculateChange(result.totalReplies, result.previousPeriod.replies);
-    
-    return {
-      ...result,
-      viewsChange,
-      likesChange,
-      repliesChange
+    result.periodComparison = {
+      views: calculateChange(result.totalViews, result.previousPeriod.views),
+      likes: calculateChange(result.totalLikes, result.previousPeriod.likes),
+      replies: calculateChange(result.totalReplies, result.previousPeriod.replies)
     };
+    
+    return result;
   }, [threads]);
+
+  // Use server metrics if available, otherwise fall back to client-side calculation
+  const loading = clientLoading || metricsLoading;
+  const displayMetrics = metrics || fallbackMetrics;
+
+  // Extract values safely
+  const totalViews = displayMetrics?.totalViews || 0;
+  const totalLikes = displayMetrics?.totalLikes || 0; 
+  const totalReplies = displayMetrics?.totalReplies || 0;
+  
+  // Get change values safely
+  const viewsChangeValue = displayMetrics?.periodComparison?.views?.change || 0;
+  const likesChangeValue = displayMetrics?.periodComparison?.likes?.change || 0;
+  const repliesChangeValue = displayMetrics?.periodComparison?.replies?.change || 0;
+  
+  // Determine if changes are positive
+  const viewsPositive = displayMetrics?.periodComparison?.views?.positive ?? true;
+  const likesPositive = displayMetrics?.periodComparison?.likes?.positive ?? true;
+  const repliesPositive = displayMetrics?.periodComparison?.replies?.positive ?? true;
 
   return (
     <div className="mb-10">
@@ -121,21 +156,19 @@ export function ClientHero({ clientId, threads }: ClientHeroProps) {
 
       {/* Dashboard Stats */}
       <div className="bg-gradient-to-br from-[#192734] to-[#22303c] rounded-xl border border-[#38444d] p-6 sm:p-8 shadow-lg">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {/* Views Card */}
           <div className="bg-[#15202b]/50 rounded-lg p-5 border border-[#38444d] hover:border-[#1d9bf0] transition-colors">
             <div className="flex items-center justify-between mb-3">
               <span className="text-[#8899a6] font-medium">Total Views</span>
               <Eye className="h-5 w-5 text-[#8899a6]" />
             </div>
-            <div className="text-3xl font-bold mb-2 truncate">{metrics.totalViews.toLocaleString()}</div>
-            <div className={`text-sm flex items-center ${metrics.viewsChange.positive ? 'text-green-500' : 'text-red-500'}`}>
-              {metrics.viewsChange.positive ? (
-                <ArrowUp className="h-4 w-4 mr-1" />
-              ) : (
-                <ArrowDown className="h-4 w-4 mr-1" />
-              )}
-              {metrics.viewsChange.value}% this week
+            <div className="text-3xl font-bold mb-2 truncate">
+              {loading ? '...' : formatNumber(totalViews)}
+            </div>
+            <div className={`text-sm flex items-center ${viewsPositive ? 'text-green-500' : 'text-red-500'}`}>
+              {viewsPositive ? <ArrowUp className="h-4 w-4 mr-1" /> : <ArrowDown className="h-4 w-4 mr-1" />}
+              {typeof viewsChangeValue === 'number' ? viewsChangeValue.toFixed(1) : '0.0'}% this week
             </div>
           </div>
 
@@ -145,14 +178,12 @@ export function ClientHero({ clientId, threads }: ClientHeroProps) {
               <span className="text-[#8899a6] font-medium">Total Likes</span>
               <ThumbsUp className="h-5 w-5 text-[#8899a6]" />
             </div>
-            <div className="text-3xl font-bold mb-2 truncate">{metrics.totalLikes.toLocaleString()}</div>
-            <div className={`text-sm flex items-center ${metrics.likesChange.positive ? 'text-green-500' : 'text-red-500'}`}>
-              {metrics.likesChange.positive ? (
-                <ArrowUp className="h-4 w-4 mr-1" />
-              ) : (
-                <ArrowDown className="h-4 w-4 mr-1" />
-              )}
-              {metrics.likesChange.value}% this week
+            <div className="text-3xl font-bold mb-2 truncate">
+              {loading ? '...' : formatNumber(totalLikes)}
+            </div>
+            <div className={`text-sm flex items-center ${likesPositive ? 'text-green-500' : 'text-red-500'}`}>
+              {likesPositive ? <ArrowUp className="h-4 w-4 mr-1" /> : <ArrowDown className="h-4 w-4 mr-1" />}
+              {typeof likesChangeValue === 'number' ? likesChangeValue.toFixed(1) : '0.0'}% this week
             </div>
           </div>
 
@@ -162,28 +193,12 @@ export function ClientHero({ clientId, threads }: ClientHeroProps) {
               <span className="text-[#8899a6] font-medium">Total Replies</span>
               <MessageCircle className="h-5 w-5 text-[#8899a6]" />
             </div>
-            <div className="text-3xl font-bold mb-2 truncate">{metrics.totalReplies.toLocaleString()}</div>
-            <div className={`text-sm flex items-center ${metrics.repliesChange.positive ? 'text-green-500' : 'text-red-500'}`}>
-              {metrics.repliesChange.positive ? (
-                <ArrowUp className="h-4 w-4 mr-1" />
-              ) : (
-                <ArrowDown className="h-4 w-4 mr-1" />
-              )}
-              {metrics.repliesChange.value}% this week
-            </div>
-          </div>
-
-          {/* Repackaged Card */}
-          <div className="bg-[#15202b]/50 rounded-lg p-5 border border-[#38444d] hover:border-[#1d9bf0] transition-colors">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-[#8899a6] font-medium">Repackaged</span>
-              <Share2 className="h-5 w-5 text-[#8899a6]" />
-            </div>
             <div className="text-3xl font-bold mb-2 truncate">
-              {metrics.repackagedCount}/{metrics.threadCount}
+              {loading ? '...' : formatNumber(totalReplies)}
             </div>
-            <div className="text-sm text-[#8899a6]">
-              {Math.round((metrics.repackagedCount / Math.max(metrics.threadCount, 1)) * 100)}% of threads repackaged
+            <div className={`text-sm flex items-center ${repliesPositive ? 'text-green-500' : 'text-red-500'}`}>
+              {repliesPositive ? <ArrowUp className="h-4 w-4 mr-1" /> : <ArrowDown className="h-4 w-4 mr-1" />}
+              {typeof repliesChangeValue === 'number' ? repliesChangeValue.toFixed(1) : '0.0'}% this week
             </div>
           </div>
         </div>

@@ -1,4 +1,4 @@
-import { Twitter, TrendingUp, Settings, Search, Home, Users, LogOut } from 'lucide-react';
+import { Twitter, TrendingUp, Settings, Search, Home, Users, LogOut, LayoutDashboard, BarChart } from 'lucide-react';
 import { useState } from 'react';
 import useOrganization from '@/hooks/useOrganization';
 import useClients from '@/hooks/useClients';
@@ -29,6 +29,11 @@ export function Sidebar({ onClientSelect, selectedClientId }: SidebarProps) {
       client.client_id.toLowerCase().includes(searchString)
     );
   });
+
+  const navigation = [
+    { name: 'Dashboard', href: '/', icon: LayoutDashboard },
+    { name: 'Analytics', href: '/analytics', icon: BarChart },
+  ]
 
   return (
     <div className="w-64 border-r border-[#38444d] h-screen flex flex-col bg-[#192734]">
@@ -62,27 +67,16 @@ export function Sidebar({ onClientSelect, selectedClientId }: SidebarProps) {
             NAVIGATION
           </h3>
           <div className="space-y-1">
-            <a 
-              href="/"
-              className="flex items-center px-3 py-2 text-white hover:bg-[#253341] rounded-md transition-colors"
-            >
-              <Home className="h-4 w-4 mr-3 text-[#1d9bf0]" />
-              Dashboard
-            </a>
-            <a 
-              href="/analytics"
-              className="flex items-center px-3 py-2 text-white hover:bg-[#253341] rounded-md transition-colors"
-            >
-              <TrendingUp className="h-4 w-4 mr-3 text-[#1d9bf0]" />
-              Analytics
-            </a>
-            <a 
-              href="/admin"
-              className="flex items-center px-3 py-2 text-white hover:bg-[#253341] rounded-md transition-colors"
-            >
-              <Settings className="h-4 w-4 mr-3 text-[#1d9bf0]" />
-              Admin
-            </a>
+            {navigation.map((item) => (
+              <a 
+                key={item.name}
+                href={item.href}
+                className="flex items-center px-3 py-2 text-white hover:bg-[#253341] rounded-md transition-colors"
+              >
+                <item.icon className="h-4 w-4 mr-3 text-[#1d9bf0]" />
+                {item.name}
+              </a>
+            ))}
           </div>
         </div>
 

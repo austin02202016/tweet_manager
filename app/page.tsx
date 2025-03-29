@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
-import { Twitter, Linkedin, Instagram, ExternalLink, Images, Search, Calendar, Filter } from "lucide-react"
+import { Twitter, Linkedin, Instagram, ExternalLink, Images, Search, Calendar, Filter, Eye, Edit, Trash } from "lucide-react"
 import { ThreadDetailModal } from "@/components/thread-detail-modal"
 import { CarouselModal } from "@/components/carousel-modal"
 import { VideoIdeasQueue } from "@/components/video-ideas-queue"
@@ -14,6 +14,7 @@ import useClients from "@/hooks/useClients"
 import { supabase } from "@/lib/supabase"
 import type { Thread } from "@/types/thread"
 import type { Client } from "@/types/client"
+import DashboardMetrics from "@/components/dashboard-metrics"
 
 type Platform = "twitter" | "linkedin" | "instagram"
 type FilterOption = "all" | "repackaged" | "not_repackaged"
@@ -153,6 +154,43 @@ export default function ThreadsPage() {
     });
   }, [threads, searchQuery, filterOption, sortColumn, sortDirection]);
 
+  // Calculate total metrics
+  const totalMetrics = useMemo(() => {
+    if (!threads?.length) return {
+      views: 0,
+      likes: 0,
+      replies: 0,
+      repackagedCount: 0
+    };
+
+    return threads.reduce((totals, thread) => {
+      // Sum up metrics from all tweets in the thread
+      thread.tweets?.forEach(tweet => {
+        totals.views += Number(tweet.view_count || 0);
+        totals.likes += Number(tweet.like_count || 0);
+        totals.replies += Number(tweet.reply_count || 0);
+      });
+
+      // Count repackaged threads
+      if (thread.repackaged_linkedin || thread.repackaged_instagram) {
+        totals.repackagedCount++;
+      }
+
+      return totals;
+    }, {
+      views: 0,
+      likes: 0,
+      replies: 0,
+      repackagedCount: 0
+    });
+  }, [threads]);
+
+  // Replace direct calculations with memoized values
+  const totalViews = totalMetrics.views;
+  const totalLikes = totalMetrics.likes;
+  const totalReplies = totalMetrics.replies;
+  const repackagedCount = totalMetrics.repackagedCount;
+
   return (
     <div className="min-h-screen bg-[#15202b] text-white">
       <div className="flex h-screen">
@@ -170,12 +208,7 @@ export default function ThreadsPage() {
                 {/* Empty div for layout */}
               </div>
               <div className="flex items-center space-x-4">
-                <a 
-                  href="/admin"
-                  className="text-[#1d9bf0] hover:underline text-sm flex items-center"
-                >
-                  Admin Dashboard
-                </a>
+                {/* Admin link removed */}
               </div>
             </div>
           
@@ -189,6 +222,12 @@ export default function ThreadsPage() {
                 <ClientHero 
                   clientId={selectedClient.client_id} 
                   threads={threads} 
+                />
+
+                {/* Dashboard Metrics with PDF Report */}
+                <DashboardMetrics 
+                  clientId={selectedClient.client_id}
+                  clientName={selectedClient.name || selectedClient.twitter_username || 'Client'}
                 />
 
                 {/* Platform Tabs */}
@@ -285,161 +324,100 @@ export default function ThreadsPage() {
                     </div>
 
                     {/* Threads Table */}
-                    <div className="overflow-x-auto rounded-lg bg-[#192734] border border-[#38444d] shadow-lg">
+                    <div className="overflow-x-auto">
                       {loading ? (
-                        <div className="p-8 text-center">
-                          <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-[#1d9bf0] border-r-2 border-[#1d9bf0] border-b-2 border-transparent"></div>
-                          <p className="mt-4 text-[#8899a6]">Loading threads...</p>
-                        </div>
-                      ) : filteredAndSortedThreads.length === 0 ? (
-                        <div className="p-8 text-center">
-                          {searchQuery ? (
-                            <div>
-                              <p className="text-xl mb-2">No matching threads found</p>
-                              <p className="text-[#8899a6]">Try adjusting your search query</p>
-                            </div>
-                          ) : (
-                            <div>
-                              <p className="text-xl mb-2">No threads found for this client</p>
-                              <p className="text-[#8899a6]">Threads will appear here once created</p>
-                            </div>
-                          )}
-                        </div>
+                        <div className="p-5 text-center text-[#8899a6]">Loading threads...</div>
+                      ) : !filteredAndSortedThreads?.length ? (
+                        <div className="p-5 text-center text-[#8899a6]">No threads found</div>
                       ) : (
-                        <table className="w-full border-collapse">
+                        <table className="w-full">
                           <thead>
-                            <tr className="border-b border-[#38444d] text-left">
-                              <th className="p-5 font-medium text-[#8899a6]">Thread</th>
-                              <th
-                                className="p-5 font-medium text-[#8899a6] cursor-pointer"
-                                onClick={() => handleSort("views")}
-                              >
-                                <div className="flex items-center">
-                                  Views
-                                  {sortColumn === "views" && (
-                                    <span className="ml-1">{sortDirection === "asc" ? "↑" : "↓"}</span>
-                                  )}
-                                </div>
-                              </th>
-                              <th
-                                className="p-5 font-medium text-[#8899a6] cursor-pointer"
-                                onClick={() => handleSort("likes")}
-                              >
-                                <div className="flex items-center">
-                                  Likes
-                                  {sortColumn === "likes" && (
-                                    <span className="ml-1">{sortDirection === "asc" ? "↑" : "↓"}</span>
-                                  )}
-                                </div>
-                              </th>
-                              <th
-                                className="p-5 font-medium text-[#8899a6] cursor-pointer"
-                                onClick={() => handleSort("replies")}
-                              >
-                                <div className="flex items-center">
-                                  Replies
-                                  {sortColumn === "replies" && (
-                                    <span className="ml-1">{sortDirection === "asc" ? "↑" : "↓"}</span>
-                                  )}
-                                </div>
-                              </th>
-                              <th
-                                className="p-5 font-medium text-[#8899a6] cursor-pointer"
-                                onClick={() => handleSort("date")}
-                              >
-                                <div className="flex items-center">
-                                  <Calendar className="h-4 w-4 mr-2" />
-                                  Date
-                                  {sortColumn === "date" && (
-                                    <span className="ml-1">{sortDirection === "asc" ? "↑" : "↓"}</span>
-                                  )}
-                                </div>
-                              </th>
-                              <th className="p-5 font-medium text-[#8899a6] text-center">Repackaged</th>
-                              <th className="p-5 font-medium text-[#8899a6] text-center">Actions</th>
+                            <tr className="text-left text-[#8899a6] text-sm border-b border-[#38444d]">
+                              <th className="pb-3 pl-6">Thread</th>
+                              <th className="pb-3 text-right">Views</th>
+                              <th className="pb-3 text-right">Likes</th>
+                              <th className="pb-3 text-right">Replies</th>
+                              <th className="pb-3 text-right pr-6">Date</th>
+                              <th className="pb-3 text-right pr-6">Actions</th>
                             </tr>
                           </thead>
                           <tbody>
-                            {filteredAndSortedThreads.map((thread) => (
-                              <tr key={thread.id} className="border-b border-[#38444d] hover:bg-[#22303c] transition-colors">
-                                <td className="p-5">
-                                  <div
-                                    className="font-medium hover:text-[#1d9bf0] cursor-pointer"
-                                    onClick={() => handleThreadSelect(thread)}
-                                  >
-                                    {thread.title || "Untitled Thread"}
-                                  </div>
-                                  <div className="text-xs text-[#8899a6] mt-1 line-clamp-1">
-                                    {thread.tweets[0]?.text?.split("\n")[0]}
-                                  </div>
-                                </td>
-                                <td className="p-5">
-                                  <div className="font-medium">{thread.views?.toLocaleString() || "0"}</div>
-                                </td>
-                                <td className="p-5">
-                                  <div className="font-medium">{thread.likes?.toLocaleString() || "0"}</div>
-                                </td>
-                                <td className="p-5">
-                                  <div className="font-medium">{thread.replies?.toLocaleString() || "0"}</div>
-                                </td>
-                                <td className="p-5">
-                                  <div className="font-medium">
-                                    {thread.date
-                                      ? new Date(thread.date).toLocaleDateString("en-US", {
-                                          month: "short",
-                                          day: "numeric",
-                                          year: "numeric",
-                                        })
-                                      : "Unknown"}
-                                  </div>
-                                </td>
-                                <td className="p-5">
-                                  <div className="flex justify-center space-x-2">
-                                    {thread.repackaged_linkedin ? (
-                                      <div className="w-6 h-6 rounded-full bg-[#0A66C2] flex items-center justify-center" title="LinkedIn">
-                                        <Linkedin className="h-3 w-3 text-white" />
+                            {(filteredAndSortedThreads || []).map((thread, index) => {
+                              // Calculate total metrics for the thread
+                              const threadMetrics = thread.tweets?.reduce((totals, tweet) => ({
+                                views: totals.views + parseInt(tweet.view_count || '0', 10),
+                                likes: totals.likes + parseInt(tweet.like_count || '0', 10),
+                                replies: totals.replies + parseInt(tweet.reply_count || '0', 10)
+                              }), { views: 0, likes: 0, replies: 0 });
+
+                              return (
+                                <tr 
+                                  key={`${thread.id}-${index}`}
+                                  className="border-b border-[#38444d] last:border-0 hover:bg-[#22303c] cursor-pointer"
+                                  onClick={() => handleThreadSelect(thread)}
+                                >
+                                  <td className="py-4 pl-6">
+                                    <div className="flex items-center">
+                                      <div className="flex-1 min-w-0">
+                                        <div className="truncate text-white">
+                                          {thread.title || 'Untitled Thread'}
+                                        </div>
+                                        <div className="text-[#8899a6] text-sm truncate">
+                                          {thread.tweets?.[0]?.text?.substring(0, 60)}...
+                                        </div>
                                       </div>
-                                    ) : (
-                                      <div className="w-6 h-6 rounded-full bg-[#38444d] flex items-center justify-center opacity-30" title="Not on LinkedIn">
-                                        <Linkedin className="h-3 w-3 text-white" />
-                                      </div>
-                                    )}
-                                    
-                                    {thread.repackaged_instagram ? (
-                                      <div className="w-6 h-6 rounded-full bg-[#E4405F] flex items-center justify-center" title="Instagram">
-                                        <Instagram className="h-3 w-3 text-white" />
-                                      </div>
-                                    ) : (
-                                      <div className="w-6 h-6 rounded-full bg-[#38444d] flex items-center justify-center opacity-30" title="Not on Instagram">
-                                        <Instagram className="h-3 w-3 text-white" />
-                                      </div>
-                                    )}
-                                  </div>
-                                </td>
-                                <td className="p-5">
-                                  <div className="flex justify-center space-x-3">
-                                    <button
-                                      onClick={() => handleCarouselSelect(thread)}
-                                      className="text-[#8899a6] hover:text-white p-2 rounded-full hover:bg-[#38444d] transition-colors"
-                                      title="Generate Images"
-                                    >
-                                      <Images className="h-4 w-4" />
-                                    </button>
-                                    <a
-                                      href={`https://twitter.com/${selectedClient?.twitter_username || "username"}/status/${
-                                        thread.tweets[0]?.id
-                                      }`}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="text-[#8899a6] hover:text-white p-2 rounded-full hover:bg-[#38444d] transition-colors"
-                                      title="View on Twitter"
-                                    >
-                                      <ExternalLink className="h-4 w-4" />
-                                    </a>
-                                  </div>
-                                </td>
-                              </tr>
-                            ))}
+                                    </div>
+                                  </td>
+                                  <td className="py-4 text-right whitespace-nowrap">
+                                    {threadMetrics.views ? parseInt(threadMetrics.views.toString(), 10).toLocaleString() : '-'}
+                                  </td>
+                                  <td className="py-4 text-right whitespace-nowrap">
+                                    {threadMetrics.likes ? parseInt(threadMetrics.likes.toString(), 10).toLocaleString() : '-'}
+                                  </td>
+                                  <td className="py-4 text-right whitespace-nowrap">
+                                    {threadMetrics.replies ? parseInt(threadMetrics.replies.toString(), 10).toLocaleString() : '-'}
+                                  </td>
+                                  <td className="py-4 text-right pr-6 whitespace-nowrap">
+                                    {new Date(thread.created_at).toLocaleDateString('en-US', {
+                                      month: 'numeric',
+                                      day: 'numeric',
+                                      year: 'numeric'
+                                    })}
+                                  </td>
+                                  <td className="py-4 text-right pr-6">
+                                    <div className="flex justify-end space-x-2">
+                                      <button 
+                                        className="text-[#1d9bf0] hover:text-white transition-colors"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleThreadSelect(thread);
+                                        }}
+                                      >
+                                        <Eye className="h-4 w-4" />
+                                      </button>
+                                      <button 
+                                        className="text-[#1d9bf0] hover:text-white transition-colors"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setSelectedThread(thread);
+                                        }}
+                                      >
+                                        <Edit className="h-4 w-4" />
+                                      </button>
+                                      <button 
+                                        className="text-[#1d9bf0] hover:text-white transition-colors"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleRepackagedChange(thread.platform, false);
+                                        }}
+                                      >
+                                        <Trash className="h-4 w-4" />
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            })}
                           </tbody>
                         </table>
                       )}

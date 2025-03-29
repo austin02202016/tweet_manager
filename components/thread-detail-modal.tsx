@@ -10,6 +10,16 @@ interface ThreadDetailModalProps {
   onClose: () => void;
 }
 
+const formatNumber = (value: number | undefined | null): string => {
+  const num = Number(value || 0);
+  if (num >= 1000000) {
+    return (num / 1000000).toFixed(1) + 'M';
+  } else if (num >= 1000) {
+    return (num / 1000).toFixed(1) + 'K';
+  }
+  return num.toLocaleString();
+};
+
 export function ThreadDetailModal({ thread, onClose }: ThreadDetailModalProps) {
   const [isVisible, setIsVisible] = useState(false);
 
@@ -105,28 +115,36 @@ export function ThreadDetailModal({ thread, onClose }: ThreadDetailModalProps) {
                             <div className="p-2 rounded-full group-hover:bg-blue-500/10 group-hover:text-blue-500 transition-colors">
                               <MessageCircle className="h-5 w-5" />
                             </div>
-                            <span className="text-sm group-hover:text-blue-500">{formatNumber(tweet.replies)}</span>
+                            <span className="text-sm group-hover:text-blue-500 ml-1">
+                              {formatNumber(tweet.reply_count)}
+                            </span>
                           </button>
 
                           <button className="flex items-center group">
                             <div className="p-2 rounded-full group-hover:bg-green-500/10 group-hover:text-green-500 transition-colors">
                               <Repeat className="h-5 w-5" />
                             </div>
-                            <span className="text-sm group-hover:text-green-500">{formatNumber(tweet.retweets)}</span>
+                            <span className="text-sm group-hover:text-green-500 ml-1">
+                              {formatNumber(tweet.retweet_count)}
+                            </span>
                           </button>
 
                           <button className="flex items-center group">
                             <div className="p-2 rounded-full group-hover:bg-red-500/10 group-hover:text-red-500 transition-colors">
                               <Heart className="h-5 w-5" />
                             </div>
-                            <span className="text-sm group-hover:text-red-500">{formatNumber(tweet.likes)}</span>
+                            <span className="text-sm group-hover:text-red-500 ml-1">
+                              {formatNumber(tweet.like_count)}
+                            </span>
                           </button>
 
                           <button className="flex items-center group">
                             <div className="p-2 rounded-full group-hover:bg-blue-500/10 group-hover:text-blue-500 transition-colors">
                               <BarChart2 className="h-5 w-5" />
                             </div>
-                            <span className="text-sm group-hover:text-blue-500">{formatNumber(tweet.views)}</span>
+                            <span className="text-sm group-hover:text-blue-500 ml-1">
+                              {formatNumber(tweet.view_count)}
+                            </span>
                           </button>
 
                           <div className="flex items-center">
