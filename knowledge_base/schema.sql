@@ -39,6 +39,20 @@ create table public.clients (
   organization_id uuid null,
   name text null,
   client_id text not null,
+  profile_photo_url text null,
   constraint clients_pkey primary key (client_id),
-  constraint clients_organization_id_fkey foreign key (organization_id) references organizations (id)
+  constraint clients_organization_id_fkey foreign KEY (organization_id) references organizations (id)
+) TABLESPACE pg_default;
+
+
+create table public.users (
+  id uuid not null default gen_random_uuid (),
+  created_at timestamp with time zone null default now(),
+  email text not null,
+  organization_id uuid null,
+  role text null,
+  auth_user_id uuid null,
+  constraint users_pkey primary key (id),
+  constraint users_email_key unique (email),
+  constraint users_organization_id_fkey foreign KEY (organization_id) references organizations (id)
 ) TABLESPACE pg_default;

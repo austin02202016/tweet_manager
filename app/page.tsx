@@ -98,7 +98,7 @@ export default function ThreadsPage() {
 
   const handleRepackagedChange = async (platform: "linkedin" | "instagram", value: boolean) => {
     if (selectedThread) {
-      const success = await updateRepackagedStatus(selectedThread.thread_id, platform, value);
+      const success = await updateRepackagedStatus(selectedThread.id, platform, value);
       if (success) {
         // Update the selected thread in memory
         setSelectedThread({
@@ -361,7 +361,7 @@ export default function ThreadsPage() {
                           </thead>
                           <tbody>
                             {filteredAndSortedThreads.map((thread) => (
-                              <tr key={thread.thread_id} className="border-b border-[#38444d] hover:bg-[#22303c] transition-colors">
+                              <tr key={thread.id} className="border-b border-[#38444d] hover:bg-[#22303c] transition-colors">
                                 <td className="p-5">
                                   <div
                                     className="font-medium hover:text-[#1d9bf0] cursor-pointer"
@@ -481,8 +481,7 @@ export default function ThreadsPage() {
         <CarouselModal thread={carouselThread} onClose={() => setCarouselThread(null)} />
       )}
 
-      {/* Video Ideas Queue */}
-      <VideoIdeasQueue />
+    
     </div>
   );
 }

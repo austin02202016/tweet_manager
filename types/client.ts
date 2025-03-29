@@ -10,6 +10,6 @@ export interface Client {
 export interface Organization {
   id: string;
   created_at: string;
-  clerk_org_id: string | null;
+  //clerk_org_id: string | null;
   name: string | null;
 } 

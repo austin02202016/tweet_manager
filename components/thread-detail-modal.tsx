@@ -1,41 +1,35 @@
-"use client"
-
-import React from "react"
-import type { Thread } from "@/types/thread"
-import { formatDate, formatNumber } from "@/lib/utils"
-import { X, MessageCircle, Repeat, Heart, BarChart2, Bookmark, Share } from "lucide-react"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Label } from "@/components/ui/label"
-import { useState, useEffect } from "react"
-import { Badge } from "@/components/ui/badge"
+// Example: components/thread-detail-modal.tsx
+import React, { useState, useEffect } from 'react';
+import { X, MessageCircle, Repeat, Heart, BarChart2, Bookmark, Share } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { formatDate, formatNumber } from '@/lib/utils';
+import type { Thread } from '@/types/thread'; // Ensure this import matches your current type definition
 
 interface ThreadDetailModalProps {
-  thread: Thread
-  onClose: () => void
-  onRepackagedChange: (platform: "linkedin" | "instagram", value: boolean) => void
+  thread: Thread;
+  onClose: () => void;
 }
 
-export function ThreadDetailModal({ thread, onClose, onRepackagedChange }: ThreadDetailModalProps) {
-  const [isVisible, setIsVisible] = useState(false)
+export function ThreadDetailModal({ thread, onClose }: ThreadDetailModalProps) {
+  const [isVisible, setIsVisible] = useState(false);
 
-  // Animation effect when opening/closing the modal
   useEffect(() => {
-    setIsVisible(true)
-    return () => setIsVisible(false)
-  }, [])
+    setIsVisible(true);
+    return () => setIsVisible(false);
+  }, []);
 
-  // Close modal with escape key
   useEffect(() => {
     const handleEscKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        onClose()
+      if (event.key === 'Escape') {
+        onClose();
       }
-    }
-    document.addEventListener("keydown", handleEscKey)
+    };
+
+    document.addEventListener('keydown', handleEscKey);
     return () => {
-      document.removeEventListener("keydown", handleEscKey)
-    }
-  }, [onClose])
+      document.removeEventListener('keydown', handleEscKey);
+    };
+  }, [onClose]);
 
   return (
     <div
@@ -43,7 +37,7 @@ export function ThreadDetailModal({ thread, onClose, onRepackagedChange }: Threa
       onClick={onClose}
     >
       <div
-        className={`bg-twitter-black rounded-2xl shadow-lg w-full max-w-xl max-h-[90vh] overflow-hidden text-white transform transition-all duration-300 ease-in-out ${isVisible ? "opacity-100 scale-100" : "opacity-0 scale-95"}`}
+        className={`bg-twitter-black rounded-2xl shadow-lg w-full max-w-xl max-h-[90vh] overflow-hidden text-white transform transition-all duration-300 ease-in-out ${isVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex justify-between items-center p-4 border-b border-twitter-lightGray sticky top-0 bg-twitter-black z-10">
@@ -70,11 +64,11 @@ export function ThreadDetailModal({ thread, onClose, onRepackagedChange }: Threa
               {thread.tweets.map((tweet, index) => (
                 <div key={tweet.id} className="border border-twitter-lightGray rounded-xl overflow-hidden">
                   <div className="p-4">
-                    <div className="flex items-start gap-3">
+                    <div className="flex items-start gap-3 mb-3">
                       <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0">
-                        <img src="/images/jesse.jpeg" alt="Profile" className="w-full h-full object-cover" />
+                        <img src="/images/profile-pic.png" alt="Profile" className="w-full h-full object-cover" />
                       </div>
-                      <div className="flex-1 min-w-0">
+                      <div>
                         <div className="flex items-center gap-1">
                           <span className="font-bold">Jesse Itzler</span>
                           <svg
@@ -88,25 +82,14 @@ export function ThreadDetailModal({ thread, onClose, onRepackagedChange }: Threa
                             </g>
                           </svg>
                           <span className="text-twitter-gray">
-                            @JesseItzler · {index === 0 ? "14h" : `${index + 1}m`}
+                            @JesseItzler · {index === 0 ? '14h' : `${index + 1}m`}
                           </span>
                         </div>
-                        <div className="text-[15px] leading-normal mt-1 mb-4 min-h-[60px]">
-                          {tweet.text.split("\n\n").map((paragraph, i) => (
-                            <p key={i} className={`${i > 0 ? "mt-4" : ""}`}>
-                              {paragraph.split("\n").map((line, j) => (
-                                <React.Fragment key={j}>
-                                  {line}
-                                  {j < paragraph.split("\n").length - 1 && <br />}
-                                </React.Fragment>
-                              ))}
-                            </p>
-                          ))}
-                        </div>
+                        <div className="text-[15px] leading-normal mt-1">{tweet.text}</div>
 
                         {tweet.media && tweet.media.length > 0 && (
-                          <div className="mt-3 mb-4 rounded-xl overflow-hidden border border-twitter-lightGray">
-                            {tweet.media.map((url: string, i: number) => (
+                          <div className="mt-3 rounded-xl overflow-hidden border border-twitter-lightGray">
+                            {tweet.media.map((url, i) => (
                               <img
                                 key={i}
                                 src={url || `/placeholder.svg?height=300&width=500`}
@@ -117,49 +100,40 @@ export function ThreadDetailModal({ thread, onClose, onRepackagedChange }: Threa
                           </div>
                         )}
 
-                        {/* Fixed-width interaction buttons with grid layout */}
-                        <div className="grid grid-cols-5 gap-1 mt-3 text-twitter-gray w-full">
+                        <div className="flex items-center justify-between mt-3 text-twitter-gray">
                           <button className="flex items-center group">
                             <div className="p-2 rounded-full group-hover:bg-blue-500/10 group-hover:text-blue-500 transition-colors">
                               <MessageCircle className="h-5 w-5" />
                             </div>
-                            <span className="text-sm group-hover:text-blue-500 ml-1">
-                              {formatNumber(tweet.reply_count)}
-                            </span>
+                            <span className="text-sm group-hover:text-blue-500">{formatNumber(tweet.replies)}</span>
                           </button>
 
                           <button className="flex items-center group">
                             <div className="p-2 rounded-full group-hover:bg-green-500/10 group-hover:text-green-500 transition-colors">
                               <Repeat className="h-5 w-5" />
                             </div>
-                            <span className="text-sm group-hover:text-green-500 ml-1">
-                              {formatNumber(tweet.retweet_count)}
-                            </span>
+                            <span className="text-sm group-hover:text-green-500">{formatNumber(tweet.retweets)}</span>
                           </button>
 
                           <button className="flex items-center group">
                             <div className="p-2 rounded-full group-hover:bg-red-500/10 group-hover:text-red-500 transition-colors">
                               <Heart className="h-5 w-5" />
                             </div>
-                            <span className="text-sm group-hover:text-red-500 ml-1">
-                              {formatNumber(tweet.like_count)}
-                            </span>
+                            <span className="text-sm group-hover:text-red-500">{formatNumber(tweet.likes)}</span>
                           </button>
 
                           <button className="flex items-center group">
                             <div className="p-2 rounded-full group-hover:bg-blue-500/10 group-hover:text-blue-500 transition-colors">
                               <BarChart2 className="h-5 w-5" />
                             </div>
-                            <span className="text-sm group-hover:text-blue-500 ml-1">
-                              {formatNumber(tweet.view_count)}
-                            </span>
+                            <span className="text-sm group-hover:text-blue-500">{formatNumber(tweet.views)}</span>
                           </button>
 
-                          <div className="flex items-center justify-end">
+                          <div className="flex items-center">
                             <button className="p-2 rounded-full hover:bg-blue-500/10 hover:text-blue-500 transition-colors">
                               <Bookmark className="h-5 w-5" />
                             </button>
-                            <button className="p-2 rounded-full hover:bg-blue-500/10 hover:text-blue-500 transition-colors ml-1">
+                            <button className="p-2 rounded-full hover:bg-blue-500/10 hover:text-blue-500 transition-colors">
                               <Share className="h-5 w-5" />
                             </button>
                           </div>
@@ -172,58 +146,7 @@ export function ThreadDetailModal({ thread, onClose, onRepackagedChange }: Threa
             </div>
           </div>
         </div>
-
-        <div className="p-4 border-t border-twitter-lightGray bg-twitter-black sticky bottom-0">
-          <div className="flex flex-col gap-4">
-            <h3 className="font-bold">Repackage this thread</h3>
-            <div className="flex flex-wrap items-center gap-6">
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="linkedin"
-                  checked={thread.repackaged_linkedin}
-                  onCheckedChange={(checked) => onRepackagedChange("linkedin", checked as boolean)}
-                  className="border-twitter-lightGray data-[state=checked]:bg-twitter-blue data-[state=checked]:border-twitter-blue"
-                />
-                <Label htmlFor="linkedin" className="text-white font-medium">
-                  LinkedIn
-                </Label>
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="instagram"
-                  checked={thread.repackaged_instagram}
-                  onCheckedChange={(checked) => onRepackagedChange("instagram", checked as boolean)}
-                  className="border-twitter-lightGray data-[state=checked]:bg-twitter-blue data-[state=checked]:border-twitter-blue"
-                />
-                <Label htmlFor="instagram" className="text-white font-medium">
-                  Instagram
-                </Label>
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-3 mt-2">
-              <button
-                onClick={onClose}
-                className="px-4 py-2 border border-twitter-lightGray text-white rounded-full text-sm font-medium
-                         transition-all duration-200 ease-in-out
-                         hover:bg-twitter-lightGray/20 active:scale-[0.98]"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={onClose}
-                className="px-4 py-2 bg-twitter-blue text-white rounded-full text-sm font-medium
-                         transition-all duration-200 ease-in-out
-                         hover:bg-twitter-blue/90 active:scale-[0.98]"
-              >
-                Save Changes
-              </button>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
-  )
+  );
 }
-

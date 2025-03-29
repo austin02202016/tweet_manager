@@ -14,10 +14,13 @@ export const useOrganization = (orgId?: string) => {
   const organizationId = orgId || defaultOrgId;
 
   useEffect(() => {
+    console.log("here")
     const fetchOrganization = async () => {
       try {
         setLoading(true);
         setError(null);
+
+        console.log("organizationId", organizationId)
 
         const { data, error } = await supabase
           .from('organizations')
@@ -26,8 +29,11 @@ export const useOrganization = (orgId?: string) => {
           .single();
 
         if (error) {
+          console.error('Error fetching organization:', error);
           throw error;
         }
+
+        console.log("data", data)
 
         setOrganization(data || null);
       } catch (err: any) {
@@ -39,7 +45,7 @@ export const useOrganization = (orgId?: string) => {
     };
 
     fetchOrganization();
-  }, [organizationId]);
+  }, []); // organizationId
 
   return { organization, organizationId, loading, error };
 };
