@@ -18,16 +18,20 @@ export default function LoginPage() {
     setLoading(true);
     setError("");
   
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
   
-    if (error) {
-      setError(error.message);
-    } else {
+      if (error) {
+        console.error("Auth Error:", error);
+        setError(error.message);
+        return;
+      }
+
       const user = data.user;
-      console.log("Authenticated User ID:", user.id);
+      console.log("Authenticated User:", user);
   
       // Fetch the user's organization ID
       const { data: userData, error: fetchError } = await supabase
@@ -36,21 +40,37 @@ export default function LoginPage() {
         .eq("auth_user_id", user.id)
         .single();
   
-      console.log("Query Error:", fetchError);
-  
-      if (fetchError || !userData) {
+      if (fetchError) {
+        console.error("Fetch Error:", fetchError);
         setError("Failed to fetch organization information.");
-      } else {
-        const organizationId = userData.organization_id;
-        localStorage.setItem("organization_id", organizationId);
-        console.log("Organization ID:", organizationId);
-  
-        // Redirect to the user's organization page
-        window.location.href = `/`;  
+        return;
       }
-    }
+
+      if (!userData) {
+        console.error("No user data found");
+        setError("User data not found.");
+        return;
+      }
+
+      const organizationId = userData.organization_id;
+      if (!organizationId) {
+        console.error("No organization ID found");
+        setError("Organization ID not found.");
+        return;
+      }
+
+      // Store the session and organization ID
+      localStorage.setItem("organization_id", organizationId);
+      console.log("Organization ID:", organizationId);
   
-    setLoading(false);
+      // Redirect to the user's organization page
+      window.location.href = `/`;
+    } catch (err) {
+      console.error("Unexpected error:", err);
+      setError("An unexpected error occurred.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

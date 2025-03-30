@@ -57,43 +57,20 @@ export const useThreads = (clientId: string | null) => {
         const threadsWithTweets = threadsData.map(thread => {
           const tweets = tweetsByThread[thread.thread_id] || [];
           
-          // Properly aggregate metrics from all tweets
-          const aggregateMetrics = tweets.reduce((acc, tweet) => {
-            return {
-              likes: acc.likes + (tweet.like_count || 0),
-              replies: acc.replies + (tweet.reply_count || 0),
-              views: acc.views + (tweet.view_count || 0),
-              retweets: acc.retweets + (tweet.retweet_count || 0),
-              quotes: acc.quotes + (tweet.quote_count || 0)
-            };
-          }, {
-            likes: 0,
-            replies: 0,
-            views: 0,
-            retweets: 0,
-            quotes: 0
-          });
+          // Get the first tweet's metrics
+          const firstTweet = tweets[0] || {};
           
           // Use the first tweet's text as the thread title if not set
-          const firstTweet = tweets[0] || {};
           const threadTitle = thread.title || 
             (firstTweet.text ? firstTweet.text.split('\n')[0] : 'Untitled Thread');
-          
-          // Get the latest date among all tweets in the thread
-          const latestTweetDate = tweets.reduce((latest, tweet) => {
-            const tweetDate = new Date(tweet.date_posted || tweet.created_at);
-            return tweetDate > latest ? tweetDate : latest;
-          }, new Date(0));
           
           return {
             ...thread,
             title: threadTitle,
-            likes: aggregateMetrics.likes,
-            replies: aggregateMetrics.replies,
-            views: aggregateMetrics.views,
-            retweets: aggregateMetrics.retweets,
-            quotes: aggregateMetrics.quotes,
-            date: latestTweetDate.toISOString() || thread.created_at,
+            likes: firstTweet.like_count || 0,
+            replies: firstTweet.reply_count || 0,
+            views: firstTweet.view_count || 0,
+            date: firstTweet.date_posted || thread.created_at,
             tweets
           };
         });

@@ -71,9 +71,9 @@ export function ThreadsTable({ threads, onThreadSelect }: ThreadsTableProps) {
               <td className="p-3">
                 <div className="line-clamp-1 font-medium">{thread.title}</div>
               </td>
-              <td className="p-3">{thread.views.toLocaleString()}</td>
-              <td className="p-3">{thread.likes.toLocaleString()}</td>
-              <td className="p-3">{thread.replies.toLocaleString()}</td>
+              <td className="p-3">{thread.tweets[0]?.view_count.toLocaleString() || '0'}</td>
+              <td className="p-3">{thread.tweets[0]?.like_count.toLocaleString() || '0'}</td>
+              <td className="p-3">{thread.tweets[0]?.reply_count.toLocaleString() || '0'}</td>
               <td className="p-3">{new Date(thread.date).toLocaleDateString()}</td>
               <td className="p-3">
                 <div className="flex justify-center space-x-4">
