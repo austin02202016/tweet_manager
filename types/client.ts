@@ -7,9 +7,4 @@ export interface Client {
   twitter_username?: string;
 }
 
-export interface Organization {
-  id: string;
-  created_at: string;
-  //clerk_org_id: string | null;
-  name: string | null;
-} 
+export type { Organization } from '@/types'; 
