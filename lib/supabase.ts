@@ -12,6 +12,9 @@ if (!supabaseUrl || !supabaseKey) {
   });
 }
 
+// Helper function to check if we're in a browser environment
+const isBrowser = typeof window !== 'undefined';
+
 export const supabase = createBrowserClient(
   supabaseUrl,
   supabaseKey,
@@ -19,6 +22,7 @@ export const supabase = createBrowserClient(
     cookies: {
       get(name: string) {
         try {
+          if (!isBrowser) return null;
           const cookie = document.cookie
             .split('; ')
             .find((row) => row.startsWith(`${name}=`))
@@ -32,6 +36,7 @@ export const supabase = createBrowserClient(
       },
       set(name: string, value: string, options: any) {
         try {
+          if (!isBrowser) return;
           // Add SameSite and Secure attributes for better security and incognito compatibility
           const cookieOptions = [
             `path=/`,
@@ -48,6 +53,7 @@ export const supabase = createBrowserClient(
       },
       remove(name: string, options: any) {
         try {
+          if (!isBrowser) return;
           document.cookie = `${name}=; path=/; max-age=0; SameSite=Lax; Secure`;
           console.debug(`Removing cookie ${name}`);
         } catch (error) {
@@ -63,6 +69,7 @@ export const supabase = createBrowserClient(
         // Use localStorage as a fallback if cookies are not available
         getItem: (key) => {
           try {
+            if (!isBrowser) return null;
             return localStorage.getItem(key);
           } catch (error) {
             console.error('Error getting from localStorage:', error);
@@ -71,6 +78,7 @@ export const supabase = createBrowserClient(
         },
         setItem: (key, value) => {
           try {
+            if (!isBrowser) return;
             localStorage.setItem(key, value);
           } catch (error) {
             console.error('Error setting localStorage:', error);
@@ -78,6 +86,7 @@ export const supabase = createBrowserClient(
         },
         removeItem: (key) => {
           try {
+            if (!isBrowser) return;
             localStorage.removeItem(key);
           } catch (error) {
             console.error('Error removing from localStorage:', error);
