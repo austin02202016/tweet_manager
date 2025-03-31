@@ -3,7 +3,7 @@ export interface Client {
   created_at: string;
   organization_id: string;
   name: string;
-  profile_picture_url?: string;
+  profile_photo_url?: string;
   twitter_username?: string;
 }
 

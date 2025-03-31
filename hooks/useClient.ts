@@ -47,7 +47,7 @@ export async function fetchUserData(clientId: string) {
   const { data, error } = await supabase
     .from('clients')
     .select('profile_photo_url, username')
-    .eq('client_id', clientId)
+    .eq('auth_user_id', clientId)
     .single();
 
   if (error) {

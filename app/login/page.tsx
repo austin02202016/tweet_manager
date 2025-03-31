@@ -1,12 +1,13 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { supabase } from "@/lib/supabase"
 import { Eye, EyeOff, LogIn } from "lucide-react"
+import { useRouter } from "next/navigation"
 
 export default function LoginPage() {
+  const router = useRouter()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
@@ -15,61 +16,46 @@ export default function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    setError("");
-  
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
-  
-      if (error) {
-        console.error("Auth Error:", error);
-        setError(error.message);
-        return;
-      }
 
-      const user = data.user;
-      console.log("Authenticated User:", user);
-  
-      // Fetch the user's organization ID
-      const { data: userData, error: fetchError } = await supabase
-        .from("users")
-        .select("organization_id")
-        .eq("auth_user_id", user.id)
-        .single();
-  
-      if (fetchError) {
-        console.error("Fetch Error:", fetchError);
-        setError("Failed to fetch organization information.");
-        return;
-      }
+      if (error) throw error;
 
-      if (!userData) {
-        console.error("No user data found");
-        setError("User data not found.");
-        return;
-      }
+      if (data.user) {
+        console.log('Authenticated user:', data.user);
+        
+        // Get user's organization ID
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('organization_id')
+          .eq('auth_user_id', data.user.id)
+          .single();
 
-      const organizationId = userData.organization_id;
-      if (!organizationId) {
-        console.error("No organization ID found");
-        setError("Organization ID not found.");
-        return;
-      }
+        if (userError) throw userError;
 
-      // Store the session and organization ID
-      localStorage.setItem("organization_id", organizationId);
-      console.log("Organization ID:", organizationId);
-  
-      // Redirect to the user's organization page
-      window.location.href = `/`;
-    } catch (err) {
-      console.error("Unexpected error:", err);
-      setError("An unexpected error occurred.");
-    } finally {
-      setLoading(false);
+        if (userData?.organization_id) {
+          console.log('Organization ID:', userData.organization_id);
+          localStorage.setItem('organizationId', userData.organization_id);
+        }
+
+        // Ensure session is established
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) throw sessionError;
+        
+        if (session) {
+          console.log('Session established:', session);
+          router.push('/');
+          router.refresh();
+        } else {
+          console.error('No session established after login');
+        }
+      }
+    } catch (error) {
+      console.error('Login error:', error);
     }
   };
 

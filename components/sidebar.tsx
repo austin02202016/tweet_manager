@@ -4,6 +4,8 @@ import useOrganization from '@/hooks/useOrganization';
 import useClients from '@/hooks/useClients';
 import type { Client } from '@/types/client';
 import { supabase } from '@/lib/supabase';
+import { UserService } from '@/lib/user-service';
+import { useUser } from '@/hooks/useUser';
 
 interface SidebarProps {
   onClientSelect: (client: Client) => void;
@@ -18,6 +20,7 @@ interface Organization {
 
 export function Sidebar({ onClientSelect, selectedClientId }: SidebarProps) {
   const [clientSearchQuery, setClientSearchQuery] = useState('');
+  const { user } = useUser();
   
   // Get organization
   const { organization, organizationId, loading: orgLoading } = useOrganization();
@@ -207,10 +210,16 @@ export function Sidebar({ onClientSelect, selectedClientId }: SidebarProps) {
       <div className="p-4 border-t border-[#38444d]">
         <div className="flex items-center justify-between">
           <div className="flex items-center">
-            <div className="w-8 h-8 bg-gradient-to-br from-purple-400 to-pink-500 rounded-full mr-3"></div>
+            <div className="w-8 h-8 rounded-full overflow-hidden mr-3 border border-[#38444d] flex-shrink-0">
+              <img 
+                src="/sei.png"
+                alt="User avatar"
+                className="w-full h-full object-contain bg-white"
+              />
+            </div>
             <div>
-              <div className="font-medium">Admin</div>
-              <div className="text-[#8899a6] text-xs">@admin</div>
+              <div className="font-medium">{user?.first_name || 'User'}</div>
+              <div className="text-[#8899a6] text-xs">{user?.email || 'No email'}</div>
             </div>
           </div>
           <button className="text-[#8899a6] hover:text-white p-1 rounded-md hover:bg-[#253341]">
