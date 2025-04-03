@@ -1,10 +1,13 @@
 export interface Client {
+  id: string;
   client_id: string;
-  created_at: string;
-  organization_id: string;
   name: string;
-  profile_photo_url?: string;
   twitter_username?: string;
+  instagram_username?: string;
+  youtube_username?: string;
+  tiktok_username?: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export type { Organization } from '@/types'; 

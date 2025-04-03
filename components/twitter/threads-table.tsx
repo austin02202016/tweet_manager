@@ -3,30 +3,26 @@
 import React, { useEffect, useState } from "react"
 import { ExternalLink, Images, Linkedin, Instagram, Calendar, ArrowUpDown, Eye, MessageCircle, Repeat, Heart, BarChart2, Share2 } from "lucide-react"
 import { formatDate, formatNumber } from "@/lib/utils"
-import type { Thread } from "@/types/thread"
+import type { Thread, ThreadSortColumn } from "@/types/thread"
 import type { Client } from "@/types/client"
 
 interface ThreadsTableProps {
   threads: Thread[]
-  loading: boolean
-  searchQuery: string
-  sortColumn: "views" | "likes" | "replies" | "date" | ""
+  onThreadSelect: (thread: Thread) => void
+  onCarouselSelect: (thread: Thread, index: number) => void
+  onSort: (column: ThreadSortColumn, direction: "asc" | "desc") => void
+  sortColumn: ThreadSortColumn
   sortDirection: "asc" | "desc"
-  handleSort: (column: "views" | "likes" | "replies" | "date" | "") => void
-  handleThreadSelect: (thread: Thread) => void
-  handleCarouselSelect: (thread: Thread) => void
   selectedClient: Client | null
 }
 
 export function ThreadsTable({
   threads,
-  loading,
-  searchQuery,
+  onThreadSelect,
+  onCarouselSelect,
+  onSort,
   sortColumn,
   sortDirection,
-  handleSort,
-  handleThreadSelect,
-  handleCarouselSelect,
   selectedClient,
 }: ThreadsTableProps) {
   const [avgBaseline, setAvgBaseline] = useState<number>(0)
@@ -51,7 +47,7 @@ export function ThreadsTable({
     }
   }, [threads])
 
-  const getSortIcon = (column: "views" | "likes" | "replies" | "date" | "") => {
+  const getSortIcon = (column: ThreadSortColumn) => {
     if (sortColumn !== column) return <ArrowUpDown className="h-4 w-4" />
     return sortDirection === "asc" ? (
       <ArrowUpDown className="h-4 w-4 rotate-180" />
@@ -108,24 +104,12 @@ export function ThreadsTable({
 
   return (
     <div className="overflow-x-auto rounded-lg bg-[#192734] border border-[#38444d] shadow-lg">
-      {loading ? (
+      {threads.length === 0 ? (
         <div className="p-10 text-center">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-[#1d9bf0] border-r-2 border-[#1d9bf0] border-b-2 border-transparent"></div>
-          <p className="mt-4 text-[#8899a6] font-medium">Loading threads...</p>
-        </div>
-      ) : threads.length === 0 ? (
-        <div className="p-10 text-center">
-          {searchQuery ? (
-            <div>
-              <p className="text-xl mb-2 font-semibold text-[#c4cfd6]">No matching threads found</p>
-              <p className="text-[#8899a6]">Try adjusting your search query</p>
-            </div>
-          ) : (
-            <div>
-              <p className="text-xl mb-2 font-semibold text-[#c4cfd6]">No threads found for this client</p>
-              <p className="text-[#8899a6]">Threads will appear here once created</p>
-            </div>
-          )}
+          <div>
+            <p className="text-xl mb-2 font-semibold text-[#c4cfd6]">No threads found</p>
+            <p className="text-[#8899a6]">Threads will appear here once created</p>
+          </div>
         </div>
       ) : (
         <div className="relative">
@@ -137,7 +121,7 @@ export function ThreadsTable({
                 </th>
                 <th
                   className="p-5 font-semibold text-[#8899a6] cursor-pointer whitespace-nowrap"
-                  onClick={() => handleSort("views")}
+                  onClick={() => onSort("views", sortDirection === "asc" ? "desc" : "asc")}
                 >
                   <div className="flex items-center">
                     Views
@@ -146,7 +130,7 @@ export function ThreadsTable({
                 </th>
                 <th
                   className="p-5 font-semibold text-[#8899a6] cursor-pointer whitespace-nowrap"
-                  onClick={() => handleSort("likes")}
+                  onClick={() => onSort("likes", sortDirection === "asc" ? "desc" : "asc")}
                 >
                   <div className="flex items-center">
                     Likes
@@ -155,7 +139,7 @@ export function ThreadsTable({
                 </th>
                 <th
                   className="p-5 font-semibold text-[#8899a6] cursor-pointer whitespace-nowrap"
-                  onClick={() => handleSort("replies")}
+                  onClick={() => onSort("replies", sortDirection === "asc" ? "desc" : "asc")}
                 >
                   <div className="flex items-center">
                     Replies
@@ -164,7 +148,7 @@ export function ThreadsTable({
                 </th>
                 <th
                   className="p-5 font-semibold text-[#8899a6] cursor-pointer whitespace-nowrap"
-                  onClick={() => handleSort("date")}
+                  onClick={() => onSort("date", sortDirection === "asc" ? "desc" : "asc")}
                 >
                   <div className="flex items-center">
                     <Calendar className="h-4 w-4 mr-2" />
@@ -186,7 +170,7 @@ export function ThreadsTable({
                       <div className="p-5 border-l-4 border-[#1d9bf0] h-full">
                         <div
                           className="font-semibold text-[#c4cfd6] hover:text-[#1d9bf0] cursor-pointer transition-colors duration-200"
-                          onClick={() => handleThreadSelect(thread)}
+                          onClick={() => onThreadSelect(thread)}
                         >
                           {thread.title || "Untitled Thread"}
                         </div>
@@ -257,7 +241,7 @@ export function ThreadsTable({
                         <button
                           onClick={(e) => {
                             e.stopPropagation()
-                            handleCarouselSelect(thread)
+                            onCarouselSelect(thread, 0)
                           }}
                           className="text-[#8899a6] hover:text-[#c4cfd6] p-2 rounded-full hover:bg-[#38444d] transition-colors duration-200"
                           title="Generate Images"

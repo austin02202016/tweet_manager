@@ -10,7 +10,7 @@ export const useOrganization = (orgId?: string) => {
   // Get organization_id from parameter or from localStorage if available
   let storedOrgId: string | null = null;
   if (typeof window !== 'undefined') {
-    storedOrgId = localStorage.getItem('organization_id');
+    storedOrgId = localStorage.getItem('organizationId');
   }
   const organizationId = orgId || storedOrgId;
 

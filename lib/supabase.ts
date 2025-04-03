@@ -1,98 +1,59 @@
 import { createBrowserClient } from '@supabase/ssr'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || '';
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_KEY || '';
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
 if (!supabaseUrl || !supabaseKey) {
-  console.error('Missing Supabase URL or Key:', {
-    hasUrl: !!supabaseUrl,
-    hasKey: !!supabaseKey,
-    urlLength: supabaseUrl.length,
-    keyLength: supabaseKey.length
-  });
+  throw new Error('Missing Supabase environment variables')
 }
 
 // Helper function to check if we're in a browser environment
 const isBrowser = typeof window !== 'undefined';
 
-export const supabase = createBrowserClient(
-  supabaseUrl,
-  supabaseKey,
-  {
-    cookies: {
-      get(name: string) {
-        try {
-          if (!isBrowser) return null;
-          const cookie = document.cookie
-            .split('; ')
-            .find((row) => row.startsWith(`${name}=`))
-            ?.split('=')[1];
-          console.debug(`Getting cookie ${name}:`, cookie ? 'Found' : 'Not found');
-          return cookie;
-        } catch (error) {
-          console.error('Error getting cookie:', error);
-          return null;
-        }
+export const supabase = createBrowserClient(supabaseUrl, supabaseKey, {
+  cookies: {
+    get(name: string) {
+      if (typeof document === 'undefined') return ''
+      const cookie = document.cookie
+        .split('; ')
+        .find((row) => row.startsWith(`${name}=`))
+      return cookie ? cookie.split('=')[1] : ''
+    },
+    set(name: string, value: string, options: { path?: string; maxAge?: number; domain?: string; secure?: boolean }) {
+      if (typeof document === 'undefined') return
+      let cookie = `${name}=${value}`
+      if (options.path) cookie += `; path=${options.path}`
+      if (options.maxAge) cookie += `; max-age=${options.maxAge}`
+      if (options.domain) cookie += `; domain=${options.domain}`
+      cookie += `; SameSite=Lax`
+      if (process.env.NODE_ENV === 'production') {
+        cookie += `; Secure`
+      }
+      document.cookie = cookie
+    },
+    remove(name: string, options?: { path?: string }) {
+      if (typeof document === 'undefined') return
+      document.cookie = `${name}=; max-age=0${options?.path ? `; path=${options.path}` : ''}`
+    },
+  },
+  auth: {
+    flowType: 'pkce',
+    detectSessionInUrl: true,
+    persistSession: true,
+    autoRefreshToken: true,
+    storage: {
+      getItem: (key: string) => {
+        if (typeof window === 'undefined') return null
+        return window.localStorage.getItem(key)
       },
-      set(name: string, value: string, options: any) {
-        try {
-          if (!isBrowser) return;
-          // Add SameSite and Secure attributes for better security and incognito compatibility
-          const cookieOptions = [
-            `path=/`,
-            `max-age=${options.maxAge || 31536000}`,
-            'SameSite=Lax',
-            'Secure'
-          ].join('; ');
-          
-          document.cookie = `${name}=${value}; ${cookieOptions}`;
-          console.debug(`Setting cookie ${name}`);
-        } catch (error) {
-          console.error('Error setting cookie:', error);
-        }
+      setItem: (key: string, value: string) => {
+        if (typeof window === 'undefined') return
+        window.localStorage.setItem(key, value)
       },
-      remove(name: string, options: any) {
-        try {
-          if (!isBrowser) return;
-          document.cookie = `${name}=; path=/; max-age=0; SameSite=Lax; Secure`;
-          console.debug(`Removing cookie ${name}`);
-        } catch (error) {
-          console.error('Error removing cookie:', error);
-        }
+      removeItem: (key: string) => {
+        if (typeof window === 'undefined') return
+        window.localStorage.removeItem(key)
       },
     },
-    auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: true,
-      storage: {
-        // Use localStorage as a fallback if cookies are not available
-        getItem: (key) => {
-          try {
-            if (!isBrowser) return null;
-            return localStorage.getItem(key);
-          } catch (error) {
-            console.error('Error getting from localStorage:', error);
-            return null;
-          }
-        },
-        setItem: (key, value) => {
-          try {
-            if (!isBrowser) return;
-            localStorage.setItem(key, value);
-          } catch (error) {
-            console.error('Error setting localStorage:', error);
-          }
-        },
-        removeItem: (key) => {
-          try {
-            if (!isBrowser) return;
-            localStorage.removeItem(key);
-          } catch (error) {
-            console.error('Error removing from localStorage:', error);
-          }
-        },
-      },
-    },
-  }
-) 
+  },
+}) 

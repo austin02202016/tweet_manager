@@ -1,24 +1,37 @@
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
-import { Twitter, Linkedin, Instagram, Search, Filter } from "lucide-react"
+import { Twitter, Linkedin, Instagram, Search, Filter, Youtube } from "lucide-react"
 import { ThreadDetailModal } from "@/components/thread-detail-modal"
 import { CarouselModal } from "@/components/carousel-modal"
 import { Sidebar } from "@/components/sidebar"
-import { ThreadsTable } from "@/components/threads-table"
+import { ThreadsTable } from "@/components/twitter/threads-table"
+import { InstagramTable } from "@/components/instagram/instagram-table"
+import { TikTokTable } from "@/components/tiktok/tiktok-table"
+import { YouTubeTable } from "@/components/youtube/youtube-table"
+import { LinkedInTable } from "@/components/linkedin/linkedin-table"
 import { WelcomeHeader } from "@/components/welcome-header"
 import { ReportsSection } from "@/components/reports-section"
 import useThreads from "@/hooks/useThreads"
 import useThreadActions from "@/hooks/useThreadActions"
 import useOrganization from "@/hooks/useOrganization"
 import useClients from "@/hooks/useClients"
+import { useTikTok } from "@/hooks/useTikTok"
+import { useYouTube } from "@/hooks/useYouTube"
 import { supabase } from "@/lib/supabase"
 import type { Thread } from "@/types/thread"
 import type { Client } from "@/types/client"
 import { useUser } from "@/hooks/useUser"
+import { useLinkedIn } from "@/hooks/useLinkedIn"
+import type { LinkedInSortColumn } from "@/types/linkedin"
+import type { ThreadSortColumn } from "@/types/thread"
+import { useReports } from "@/hooks/useReports"
 
-type Platform = "twitter" | "linkedin" | "instagram"
+type Platform = "twitter" | "linkedin" | "instagram" | "tiktok" | "youtube"
 type FilterOption = "all" | "repackaged" | "not_repackaged"
+type InstagramSortColumn = "likescount" | "commentscount" | "videoviewcount" | "timestamp" | ""
+type TikTokSortColumn = "playcount" | "diggcount" | "commentcount" | "date"
+type YouTubeSortColumn = "viewcount" | "likecount" | "commentcount" | "date"
 
 // Sample reports data
 const sampleReports = [
@@ -57,10 +70,17 @@ export default function ThreadsPage() {
   const [activePlatform, setActivePlatform] = useState<Platform>("twitter")
   const [selectedThread, setSelectedThread] = useState<Thread | null>(null)
   const [carouselThread, setCarouselThread] = useState<Thread | null>(null)
-  const [sortColumn, setSortColumn] = useState<"views" | "likes" | "replies" | "date" | "">("")
+  const [twitterSortColumn, setTwitterSortColumn] = useState<ThreadSortColumn>("date")
+  const [instagramSortColumn, setInstagramSortColumn] = useState<InstagramSortColumn>("timestamp")
+  const [tiktokSortColumn, setTiktokSortColumn] = useState<TikTokSortColumn>("date")
+  const [youtubeSortColumn, setYoutubeSortColumn] = useState<YouTubeSortColumn>("date")
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc")
   const [searchQuery, setSearchQuery] = useState("")
   const [filterOption, setFilterOption] = useState<FilterOption>("all")
+  const [instagramPosts, setInstagramPosts] = useState<any[]>([])
+  const { posts: linkedinPosts, loading: linkedinLoading } = useLinkedIn(selectedClient?.client_id || null)
+  const [linkedinSortColumn, setLinkedinSortColumn] = useState<LinkedInSortColumn>("numlikes")
+  const { reports, loading: reportsLoading } = useReports(selectedClient?.client_id || null)
 
   // Get organization
   const { organizationId } = useOrganization()
@@ -70,6 +90,10 @@ export default function ThreadsPage() {
 
   // Get user
   const { user } = useUser()
+
+  // Get TikTok and YouTube data
+  const { videos: tiktokVideos, loading: tiktokLoading } = useTikTok(selectedClient?.client_id || null)
+  const { videos: youtubeVideos, loading: youtubeLoading } = useYouTube(selectedClient?.client_id || null)
 
   // Handle URL parameters for client selection
   useEffect(() => {
@@ -111,6 +135,58 @@ export default function ThreadsPage() {
   // Thread actions
   const { updateRepackagedStatus } = useThreadActions()
 
+  // Fetch Instagram posts for the selected client
+  useEffect(() => {
+    const fetchInstagramPosts = async () => {
+      if (!selectedClient?.client_id) {
+        console.log('No client selected, skipping Instagram posts fetch')
+        return
+      }
+      
+      try {
+        console.log('Fetching Instagram posts for client:', selectedClient.client_id)
+        
+        const { data, error } = await supabase
+          .from('instagram')
+          .select('*')
+          .eq('client_id', selectedClient.client_id)
+        
+        if (error) {
+          console.error('Supabase error:', error)
+          throw error
+        }
+        
+        console.log('Fetched Instagram posts:', data)
+        
+        if (!data || data.length === 0) {
+          console.log('No Instagram posts found for client')
+          setInstagramPosts([])
+          return
+        }
+        
+        // Convert date strings to Date objects for sorting
+        const postsWithDates = data.map(post => ({
+          ...post,
+          date: post.date ? new Date(post.date) : new Date()
+        }))
+        
+        console.log('Processed Instagram posts:', postsWithDates)
+        setInstagramPosts(postsWithDates)
+      } catch (err) {
+        console.error('Error fetching Instagram posts:', err)
+        if (err instanceof Error) {
+          console.error('Error details:', err.message)
+          console.error('Error stack:', err.stack)
+        }
+        setInstagramPosts([])
+      }
+    }
+    
+    if (activePlatform === 'instagram') {
+      fetchInstagramPosts()
+    }
+  }, [selectedClient, activePlatform])
+
   const handleClientSelect = (client: Client) => {
     setSelectedClient(client)
     // Reset thread selection when changing clients
@@ -133,6 +209,52 @@ export default function ThreadsPage() {
     setCarouselThread(thread)
   }
 
+  const handleInstagramPostSelect = (post: any) => {
+    // Convert Instagram post to Thread format for compatibility
+    const thread: Thread = {
+      id: post.id,
+      client_id: selectedClient?.client_id || '',
+      title: post.caption || 'Instagram Post',
+      date: post.date,
+      created_at: post.date,
+      theme: '',
+      repackaged_linkedin: post.repackaged_linkedin || false,
+      repackaged_instagram: post.repackaged_instagram || false,
+      tweets: [{
+        id: post.id,
+        text: post.caption || '',
+        likes: 0,
+        replies: post.commentscount || 0,
+        views: 0,
+        created_at: post.date
+      }]
+    }
+    setSelectedThread(thread)
+  }
+
+  const handleInstagramCarouselSelect = (post: any) => {
+    // Convert Instagram post to Thread format for compatibility
+    const thread: Thread = {
+      id: post.id,
+      client_id: selectedClient?.client_id || '',
+      title: post.caption || 'Instagram Post',
+      date: post.date,
+      created_at: post.date,
+      theme: '',
+      repackaged_linkedin: post.repackaged_linkedin || false,
+      repackaged_instagram: post.repackaged_instagram || false,
+      tweets: [{
+        id: post.id,
+        text: post.caption || '',
+        likes: 0,
+        replies: post.commentscount || 0,
+        views: 0,
+        created_at: post.date
+      }]
+    }
+    setCarouselThread(thread)
+  }
+
   const handleRepackagedChange = async (platform: "linkedin" | "instagram", value: boolean) => {
     if (selectedThread) {
       const success = await updateRepackagedStatus(selectedThread.id, platform, value)
@@ -146,14 +268,39 @@ export default function ThreadsPage() {
     }
   }
 
-  const handleSort = (column: "views" | "likes" | "replies" | "date" | "") => {
-    if (sortColumn === column) {
+  const handleTwitterSort = (column: ThreadSortColumn) => {
+    if (twitterSortColumn === column) {
       // Flip direction
       setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"))
     } else {
-      setSortColumn(column)
+      setTwitterSortColumn(column)
       setSortDirection("desc")
     }
+  }
+
+  const handleInstagramSort = (column: InstagramSortColumn) => {
+    if (instagramSortColumn === column) {
+      // Flip direction
+      setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"))
+    } else {
+      setInstagramSortColumn(column)
+      setSortDirection("desc")
+    }
+  }
+
+  const handleTikTokSort = (column: TikTokSortColumn, direction: "asc" | "desc") => {
+    setTiktokSortColumn(column)
+    setSortDirection(direction)
+  }
+
+  const handleYouTubeSort = (column: YouTubeSortColumn, direction: "asc" | "desc") => {
+    setYoutubeSortColumn(column)
+    setSortDirection(direction)
+  }
+
+  const handleLinkedInSort = (column: LinkedInSortColumn, direction: "asc" | "desc") => {
+    setLinkedinSortColumn(column)
+    setSortDirection(direction)
   }
 
   const filteredAndSortedThreads = useMemo(() => {
@@ -178,14 +325,14 @@ export default function ThreadsPage() {
 
     // Then sort
     return [...filtered].sort((a, b) => {
-      if (!sortColumn) return 0
+      if (!twitterSortColumn) return 0
 
-      const valA = sortColumn === "date" ? new Date(a.date).getTime() : (a as any)[sortColumn]
-      const valB = sortColumn === "date" ? new Date(b.date).getTime() : (b as any)[sortColumn]
+      const valA = twitterSortColumn === "date" ? new Date(a.date).getTime() : (a as any)[twitterSortColumn]
+      const valB = twitterSortColumn === "date" ? new Date(b.date).getTime() : (b as any)[twitterSortColumn]
 
       return sortDirection === "asc" ? valA - valB : valB - valA
     })
-  }, [threads, searchQuery, filterOption, sortColumn, sortDirection])
+  }, [threads, searchQuery, filterOption, twitterSortColumn, sortDirection])
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#15202b] to-[#1a2836] text-white">
@@ -208,7 +355,9 @@ export default function ThreadsPage() {
                 <WelcomeHeader userName={user?.first_name || ''} clientName={selectedClient.name} />
 
                 {/* Reports Section */}
-                <ReportsSection reports={sampleReports} />
+                <div className="mb-8">
+                  <ReportsSection reports={reports} loading={reportsLoading} />
+                </div>
 
                 {/* Platform Tabs */}
                 <div className="flex border-b border-[#38444d] mb-8 bg-[#192734] rounded-t-xl overflow-hidden">
@@ -250,6 +399,40 @@ export default function ThreadsPage() {
                       className={`h-5 w-5 mr-2 ${activePlatform === "instagram" ? "text-[#E4405F]" : "text-[#8899a6]"}`}
                     />
                     Instagram
+                  </button>
+                  <button
+                    className={`px-8 py-4 font-medium text-base flex items-center transition-all duration-200 ${
+                      activePlatform === "tiktok"
+                        ? "text-[#00f2ea] border-b-2 border-[#00f2ea] bg-[#00f2ea1a]"
+                        : "text-[#8899a6] hover:text-white hover:bg-[#ffffff0a]"
+                    }`}
+                    onClick={() => setActivePlatform("tiktok")}
+                  >
+                    <svg
+                      className={`h-5 w-5 mr-2 ${activePlatform === "tiktok" ? "text-[#00f2ea]" : "text-[#8899a6]"}`}
+                      viewBox="0 0 24 24"
+                      fill="currentColor"
+                    >
+                      <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-5.2 1.74 2.89 2.89 0 015.2-2.32V9.39a8.16 8.16 0 005.52 2.09V7.05a6.53 6.53 0 01-3.77-1.36z" />
+                    </svg>
+                    TikTok
+                  </button>
+                  <button
+                    className={`px-8 py-4 font-medium text-base flex items-center transition-all duration-200 ${
+                      activePlatform === "youtube"
+                        ? "text-[#ff0000] border-b-2 border-[#ff0000] bg-[#ff00001a]"
+                        : "text-[#8899a6] hover:text-white hover:bg-[#ffffff0a]"
+                    }`}
+                    onClick={() => setActivePlatform("youtube")}
+                  >
+                    <svg
+                      className={`h-5 w-5 mr-2 ${activePlatform === "youtube" ? "text-[#ff0000]" : "text-[#8899a6]"}`}
+                      viewBox="0 0 24 24"
+                      fill="currentColor"
+                    >
+                      <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+                    </svg>
+                    YouTube Shorts
                   </button>
                 </div>
 
@@ -303,13 +486,159 @@ export default function ThreadsPage() {
                     {/* Threads Table Component */}
                     <ThreadsTable
                       threads={filteredAndSortedThreads}
+                      onThreadSelect={handleThreadSelect}
+                      onCarouselSelect={handleCarouselSelect}
+                      onSort={handleTwitterSort}
+                      sortColumn={twitterSortColumn}
+                      sortDirection={sortDirection}
+                      selectedClient={selectedClient}
+                    />
+                  </>
+                )}
+
+                {activePlatform === "instagram" && (
+                  <>
+                    {/* Search and Filter Controls for Instagram */}
+                    <div className="mb-6">
+                      <div className="flex flex-col sm:flex-row gap-4 w-full">
+                        {/* Search input */}
+                        <div className="relative w-full sm:w-64">
+                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <Search className="h-4 w-4 text-[#8899a6]" />
+                          </div>
+                          <input
+                            type="text"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder="Search Instagram posts..."
+                            className="w-full bg-[#253341] text-white rounded-md pl-10 pr-4 py-2 border border-[#38444d] focus:border-[#E4405F] focus:ring-2 focus:ring-[#E4405F33] focus:outline-none transition-colors duration-200"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Instagram Table Component */}
+                    <InstagramTable
+                      posts={instagramPosts}
                       loading={loading}
                       searchQuery={searchQuery}
-                      sortColumn={sortColumn}
+                      sortColumn={instagramSortColumn}
                       sortDirection={sortDirection}
-                      handleSort={handleSort}
-                      handleThreadSelect={handleThreadSelect}
-                      handleCarouselSelect={handleCarouselSelect}
+                      handleSort={handleInstagramSort}
+                      handlePostSelect={handleInstagramPostSelect}
+                      handleCarouselSelect={handleInstagramCarouselSelect}
+                      selectedClient={{
+                        id: selectedClient.client_id,
+                        name: selectedClient.name,
+                        instagram_username: selectedClient.instagram_username || null
+                      }}
+                    />
+                  </>
+                )}
+
+                {activePlatform === "tiktok" && (
+                  <>
+                    {/* Search and Filter Controls for TikTok */}
+                    <div className="mb-6">
+                      <div className="flex flex-col sm:flex-row gap-4 w-full">
+                        {/* Search input */}
+                        <div className="relative w-full sm:w-64">
+                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <Search className="h-4 w-4 text-[#8899a6]" />
+                          </div>
+                          <input
+                            type="text"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder="Search TikTok videos..."
+                            className="w-full bg-[#253341] text-white rounded-md pl-10 pr-4 py-2 border border-[#38444d] focus:border-[#00f2ea] focus:ring-2 focus:ring-[#00f2ea33] focus:outline-none transition-colors duration-200"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* TikTok Table Component */}
+                    <TikTokTable
+                      client={{
+                        id: selectedClient.client_id,
+                        name: selectedClient.name,
+                        tiktok_username: selectedClient.tiktok_username || ""
+                      }}
+                      videos={tiktokVideos}
+                      sortColumn={tiktokSortColumn}
+                      sortDirection={sortDirection}
+                      onSort={handleTikTokSort}
+                    />
+                  </>
+                )}
+
+                {activePlatform === "youtube" && (
+                  <>
+                    {/* Search and Filter Controls for YouTube */}
+                    <div className="mb-6">
+                      <div className="flex flex-col sm:flex-row gap-4 w-full">
+                        {/* Search input */}
+                        <div className="relative w-full sm:w-64">
+                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <Search className="h-4 w-4 text-[#8899a6]" />
+                          </div>
+                          <input
+                            type="text"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder="Search YouTube Shorts..."
+                            className="w-full bg-[#253341] text-white rounded-md pl-10 pr-4 py-2 border border-[#38444d] focus:border-[#ff0000] focus:ring-2 focus:ring-[#ff000033] focus:outline-none transition-colors duration-200"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* YouTube Table Component */}
+                    <YouTubeTable
+                      videos={youtubeVideos}
+                      loading={youtubeLoading}
+                      searchQuery={searchQuery}
+                      sortColumn={youtubeSortColumn}
+                      sortDirection={sortDirection}
+                      onSort={handleYouTubeSort}
+                      handleVideoSelect={(video) => {
+                        // Handle video selection
+                        console.log("Selected video:", video)
+                      }}
+                      selectedClient={selectedClient}
+                    />
+                  </>
+                )}
+
+                {activePlatform === "linkedin" && (
+                  <>
+                    {/* Search and Filter Controls for LinkedIn */}
+                    <div className="mb-6">
+                      <div className="flex flex-col sm:flex-row gap-4 w-full">
+                        {/* Search input */}
+                        <div className="relative w-full sm:w-64">
+                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <Search className="h-4 w-4 text-[#8899a6]" />
+                          </div>
+                          <input
+                            type="text"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder="Search LinkedIn posts..."
+                            className="w-full bg-[#253341] text-white rounded-md pl-10 pr-4 py-2 border border-[#38444d] focus:border-[#0A66C2] focus:ring-2 focus:ring-[#0A66C233] focus:outline-none transition-colors duration-200"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* LinkedIn Table Component */}
+                    <LinkedInTable
+                      posts={linkedinPosts}
+                      loading={linkedinLoading}
+                      searchQuery={searchQuery}
+                      sortColumn={linkedinSortColumn}
+                      sortDirection={sortDirection}
+                      onSort={handleLinkedInSort}
                       selectedClient={selectedClient}
                     />
                   </>

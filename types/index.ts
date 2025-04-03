@@ -19,6 +19,7 @@ export interface StripeCustomer {
   user_id: string
   stripe_customer_id: string
   email: string
+  name: string | null
   created_at: string
   updated_at: string
 }
@@ -29,12 +30,12 @@ export interface StripeInvoice {
   stripe_invoice_id: string
   number: string
   amount: number
-  status: 'open' | 'paid' | 'void' | 'uncollectible'
+  status: 'draft' | 'open' | 'paid' | 'void' | 'uncollectible'
   created: string
   due_date: string
   period_start: string
   period_end: string
-  pdf_url: string
+  pdf_url?: string
   items: {
     id: string
     amount: number
@@ -47,10 +48,11 @@ export interface StripePaymentMethod {
   customer_id: string
   stripe_payment_method_id: string
   type: string
+  brand: string
   last4: string
   exp_month: number
   exp_year: number
-  brand: string
+  isDefault: boolean
   created_at: string
   updated_at: string
 } 
