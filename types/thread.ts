@@ -8,7 +8,7 @@ export interface Tweet {
 }
 
 export interface Thread {
-  id: string
+  thread_id: string
   client_id: string
   title: string
   date: string
@@ -17,6 +17,9 @@ export interface Thread {
   repackaged_linkedin: boolean
   repackaged_instagram: boolean
   tweets: Tweet[]
+  views?: number
+  likes?: number
+  replies?: number
 }
 
 export type ThreadSortColumn = "date" | "views" | "likes" | "replies"

@@ -165,7 +165,7 @@ export function ThreadsTable({
               {threads.map((thread) => {
                 const performance = getPerformanceLabel(thread.views, threads)
                 return (
-                  <tr key={thread.id} className="hover:bg-[#22303c] transition-colors duration-150">
+                  <tr key={thread.thread_id} className="hover:bg-[#22303c] transition-colors duration-150">
                     <td className="sticky left-0 z-10 p-0 bg-[#1d9bf015]">
                       <div className="p-5 border-l-4 border-[#1d9bf0] h-full">
                         <div
