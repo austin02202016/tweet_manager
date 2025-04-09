@@ -26,6 +26,7 @@ import { useLinkedIn } from "@/hooks/useLinkedIn"
 import type { LinkedInSortColumn } from "@/types/linkedin"
 import type { ThreadSortColumn } from "@/types/thread"
 import { useReports } from "@/hooks/useReports"
+import { hasClientAccess } from "@/lib/access-control"
 
 type Platform = "twitter" | "linkedin" | "instagram" | "tiktok" | "youtube"
 type FilterOption = "all" | "repackaged" | "not_repackaged"
@@ -98,7 +99,7 @@ export default function ThreadsPage() {
   // Handle URL parameters for client selection
   useEffect(() => {
     const getClientFromUrl = async () => {
-      if (typeof window === "undefined") return // Skip during SSR
+      if (typeof window === "undefined" || !user) return // Skip during SSR or if user not loaded
 
       // Check for client parameter in URL
       const params = new URLSearchParams(window.location.search)
@@ -106,17 +107,51 @@ export default function ThreadsPage() {
 
       if (clientId) {
         try {
-          // Try to fetch the client directly
-          const { data, error } = await supabase.from("clients").select("*").eq("client_id", clientId).single()
-
-          if (error) throw error
-
-          if (data) {
-            setSelectedClient(data)
-            return
+          let hasAccess = false
+          
+          // For agency_admin, check if client is in their organization
+          if (user.role === 'agency_admin') {
+            const { data, error } = await supabase
+              .from("clients")
+              .select("*")
+              .eq("client_id", clientId)
+              .eq("organization_id", user.organization_id)
+              .single()
+            
+            if (data && !error) {
+              hasAccess = true
+              setSelectedClient(data)
+              return
+            }
+          } 
+          // For agency_user, check if client is assigned to them
+          else if (user.role === 'agency_user') {
+            const { data, error } = await supabase
+              .from("clients")
+              .select("*")
+              .eq("client_id", clientId)
+              .eq("user_id", user.id)
+              .single()
+            
+            if (data && !error) {
+              hasAccess = true
+              setSelectedClient(data)
+              return
+            }
+          }
+          
+          // If no access or client not found, remove from URL
+          if (!hasAccess) {
+            const url = new URL(window.location.href)
+            url.searchParams.delete("client")
+            window.history.pushState({}, "", url)
           }
         } catch (err) {
           console.error("Error fetching client from URL:", err)
+          // On error, clear client from URL
+          const url = new URL(window.location.href)
+          url.searchParams.delete("client")
+          window.history.pushState({}, "", url)
         }
       }
 
@@ -127,7 +162,7 @@ export default function ThreadsPage() {
     }
 
     getClientFromUrl()
-  }, [clients, selectedClient])
+  }, [clients, selectedClient, user])
 
   // Fetch threads for the selected client
   const { threads, loading } = useThreads(selectedClient?.client_id || null)
@@ -138,8 +173,17 @@ export default function ThreadsPage() {
   // Fetch Instagram posts for the selected client
   useEffect(() => {
     const fetchInstagramPosts = async () => {
-      if (!selectedClient?.client_id) {
-        console.log('No client selected, skipping Instagram posts fetch')
+      if (!selectedClient?.client_id || !user) {
+        console.log('No client selected or user not loaded, skipping Instagram posts fetch')
+        return
+      }
+      
+      // Verify access permission
+      const canAccess = await hasClientAccess(user, selectedClient.client_id)
+      
+      if (!canAccess) {
+        console.error("Access denied to client for Instagram posts:", selectedClient.client_id)
+        setInstagramPosts([])
         return
       }
       
@@ -185,9 +229,19 @@ export default function ThreadsPage() {
     if (activePlatform === 'instagram') {
       fetchInstagramPosts()
     }
-  }, [selectedClient, activePlatform])
+  }, [selectedClient, activePlatform, user])
 
-  const handleClientSelect = (client: Client) => {
+  const handleClientSelect = async (client: Client) => {
+    // Verify access before changing the client
+    if (!user) return
+    
+    const canAccess = await hasClientAccess(user, client.client_id)
+    
+    if (!canAccess) {
+      console.error("Access denied to client:", client.client_id)
+      return
+    }
+    
     setSelectedClient(client)
     // Reset thread selection when changing clients
     setSelectedThread(null)
@@ -201,15 +255,45 @@ export default function ThreadsPage() {
     }
   }
 
-  const handleThreadSelect = (thread: Thread) => {
+  const handleThreadSelect = async (thread: Thread) => {
+    // Verify access before showing thread details
+    if (!user || !thread.client_id) return
+    
+    const canAccess = await hasClientAccess(user, thread.client_id)
+    
+    if (!canAccess) {
+      console.error("Access denied to thread client:", thread.client_id)
+      return
+    }
+    
     setSelectedThread(thread)
   }
 
-  const handleCarouselSelect = (thread: Thread) => {
+  const handleCarouselSelect = async (thread: Thread) => {
+    // Verify access before showing carousel
+    if (!user || !thread.client_id) return
+    
+    const canAccess = await hasClientAccess(user, thread.client_id)
+    
+    if (!canAccess) {
+      console.error("Access denied to thread client:", thread.client_id)
+      return
+    }
+    
     setCarouselThread(thread)
   }
 
-  const handleInstagramPostSelect = (post: any) => {
+  const handleInstagramPostSelect = async (post: any) => {
+    // Verify access before showing Instagram post details
+    if (!user || !post.client_id || !selectedClient) return
+    
+    const canAccess = await hasClientAccess(user, post.client_id)
+    
+    if (!canAccess) {
+      console.error("Access denied to Instagram post client:", post.client_id)
+      return
+    }
+    
     // Convert Instagram post to Thread format for compatibility
     const thread: Thread = {
       id: post.id,
@@ -232,7 +316,17 @@ export default function ThreadsPage() {
     setSelectedThread(thread)
   }
 
-  const handleInstagramCarouselSelect = (post: any) => {
+  const handleInstagramCarouselSelect = async (post: any) => {
+    // Verify access before showing Instagram carousel
+    if (!user || !post.client_id || !selectedClient) return
+    
+    const canAccess = await hasClientAccess(user, post.client_id)
+    
+    if (!canAccess) {
+      console.error("Access denied to Instagram post client:", post.client_id)
+      return
+    }
+    
     // Convert Instagram post to Thread format for compatibility
     const thread: Thread = {
       id: post.id,
@@ -672,6 +766,7 @@ export default function ThreadsPage() {
           thread={selectedThread} 
           onClose={() => setSelectedThread(null)} 
           selectedClient={selectedClient}
+          onRepackagedChange={handleRepackagedChange}
         />
       )}
 

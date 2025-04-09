@@ -1,5 +1,6 @@
 import { Twitter, TrendingUp, Settings, Search, Home, Users, LogOut } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import useOrganization from '@/hooks/useOrganization';
 import useClients from '@/hooks/useClients';
 import type { Client } from '@/types/client';
@@ -19,6 +20,7 @@ interface Organization {
 }
 
 export function Sidebar({ onClientSelect, selectedClientId }: SidebarProps) {
+  const router = useRouter();
   const [clientSearchQuery, setClientSearchQuery] = useState('');
   const { user } = useUser();
   
@@ -27,6 +29,20 @@ export function Sidebar({ onClientSelect, selectedClientId }: SidebarProps) {
   
   // Get clients for this organization
   const { clients, loading: clientsLoading } = useClients(organizationId);
+
+  // Logout handler
+  const handleLogout = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
+      // Redirect to login page after logout
+      router.push('/login');
+    } catch (err) {
+      console.error('Error logging out:', err);
+      alert('Failed to log out. Please try again.');
+    }
+  };
 
   // Filter clients based on search query
   const filteredClients = clients.filter(client => {
@@ -220,9 +236,24 @@ export function Sidebar({ onClientSelect, selectedClientId }: SidebarProps) {
             <div>
               <div className="font-medium">{user?.first_name || 'User'}</div>
               <div className="text-[#8899a6] text-xs">{user?.email || 'No email'}</div>
+              {user?.role && (
+                <div className="text-xs mt-1">
+                  <span className={`px-1.5 py-0.5 rounded text-white text-[10px] uppercase ${
+                    user.role === 'agency_admin' 
+                      ? 'bg-green-600' 
+                      : 'bg-blue-600'
+                  }`}>
+                    {user.role.replace('_', ' ')}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
-          <button className="text-[#8899a6] hover:text-white p-1 rounded-md hover:bg-[#253341]">
+          <button 
+            onClick={handleLogout}
+            className="text-[#8899a6] hover:text-white p-1 rounded-md hover:bg-[#253341] transition-colors"
+            title="Logout"
+          >
             <LogOut className="h-4 w-4" />
           </button>
         </div>

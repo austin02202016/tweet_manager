@@ -1,15 +1,18 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { Thread, Tweet } from '@/types/thread';
+import { useUser } from './useUser';
+import { hasClientAccess } from '@/lib/access-control';
 
 export const useThreads = (clientId: string | null) => {
   const [threads, setThreads] = useState<Thread[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const { user } = useUser();
 
   useEffect(() => {
     const fetchThreads = async () => {
-      if (!clientId) {
+      if (!clientId || !user) {
         setLoading(false);
         return;
       }
@@ -17,6 +20,16 @@ export const useThreads = (clientId: string | null) => {
       try {
         setLoading(true);
         setError(null);
+
+        // Verify user has access to this client
+        const hasAccess = await hasClientAccess(user, clientId);
+        
+        if (!hasAccess) {
+          console.error('Access denied to client threads:', clientId);
+          setThreads([]);
+          setLoading(false);
+          return;
+        }
 
         // First, fetch all threads for this client
         const { data: threadsData, error: threadsError } = await supabase
@@ -85,7 +98,7 @@ export const useThreads = (clientId: string | null) => {
     };
 
     fetchThreads();
-  }, [clientId]);
+  }, [clientId, user]);
 
   return { threads, loading, error };
 };
